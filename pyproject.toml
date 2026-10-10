@@ -1,0 +1,20 @@
+[project]
+name = "orders-admin-panel"
+version = "0.2.0"
+description = "Админ-панель заказов: Flask + SQLite, без сборщика."
+requires-python = ">=3.11"
+readme = "README.ru.md"
+license = { text = "MIT" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["instance", "img"]
+
+[tool.ruff.lint]
+# Набор ruff по умолчанию: синтаксис и pyflakes (неиспользуемые импорты и переменные).
+select = ["E4", "E7", "E9", "F"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
