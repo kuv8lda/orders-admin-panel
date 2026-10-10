@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orders Admin Panel — Sign in</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="admin">
+  <main class="login-wrap">
+    <div class="card login-card" style="padding:24px">
+      <h2 style="margin-bottom:6px">Orders Admin Panel</h2>
+      <p class="lead">A panel for small businesses that take orders in messengers and keep them in spreadsheets: one table with statuses, search, CSV export and sales stats.</p>
+
+      <div class="demo-box">
+        <div><b>Demo username:</b> admin</div>
+        <div><b>Demo password:</b> password123</div>
+        <div style="margin-top:10px">
+          <button type="button" class="btn btn-ghost" id="fillDemo" style="padding:6px 12px;font-size:0.85rem">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Fill demo credentials
+          </button>
+        </div>
+      </div>
+
+      <div class="inline-error hidden" id="loginError"></div>
+      <div class="ratelimit-note hidden" id="rateNote"></div>
+
+      <form class="form" id="adminForm" novalidate style="margin-top:12px;gap:10px">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" placeholder="Username" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+        </div>
+        <button class="btn btn-primary" type="submit">Sign in</button>
+      </form>
+    </div>
+  </main>
+
+  <script src="js/common.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
