@@ -103,6 +103,23 @@ ORDER_SORT_WHITELIST: frozenset[str] = frozenset(
     ("id", "customer_name", "product", "amount_cents", "status", "created_at")
 )
 
+# Chart.js и Font Awesome пока грузятся с CDN. Когда файлы лягут в js/vendor и
+# css/vendor, оба хоста отсюда нужно убрать.
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        "script-src 'self' https://cdn.jsdelivr.net",
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+        "font-src 'self' https://cdnjs.cloudflare.com",
+        "img-src 'self' data:",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    )
+)
+
 STATIC_FILES_DENYLIST = frozenset(
     (".py", ".db", ".txt", ".env", ".md", ".xz")
 )
@@ -279,6 +296,7 @@ def _after_security_headers(response: Response) -> Response:
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
     if not current_app.config.get("DEBUG", False):
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     path = request.path
