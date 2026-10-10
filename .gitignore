@@ -1,0 +1,14 @@
+instance/*
+!instance/.gitkeep
+__pycache__/
+*.pyc
+.env
+*.db
+.pytest_cache/
+.venv/
+venv/
+.ruff_cache/
+.coverage
+htmlcov/
+.env.*
+!.env.example
