@@ -13,17 +13,14 @@ import logging
 import os
 import re
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
-from urllib.parse import urlparse
 
 from flask import (
     Flask,
     Response,
-    abort as flask_abort,
     current_app,
-    g,
     jsonify,
     make_response,
     redirect,
@@ -31,7 +28,6 @@ from flask import (
     request,
     send_from_directory,
     session,
-    url_for,
 )
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -47,7 +43,6 @@ from auth import (
     verify_password,
 )
 from db import (
-    PRODUCT_CATALOGUE,
     close_db,
     get_db,
     init_db,

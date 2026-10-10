@@ -1,8 +1,6 @@
 """Order listing: filters, search, date/amount ranges, sort, pagination, SQLi."""
 from __future__ import annotations
 
-import pytest
-
 
 def _headers(csrf: str) -> dict[str, str]:
     return {"X-CSRF-Token": csrf}

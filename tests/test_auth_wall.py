@@ -6,8 +6,6 @@ also exercised here.
 """
 from __future__ import annotations
 
-import pytest
-
 
 def test_protected_api_endpoints_return_401_without_session(app, client):
     """Enumerate app.url_map and verify /api/* guard (allowlist only)."""

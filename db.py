@@ -6,7 +6,6 @@ import random
 import sqlite3
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import flask
 

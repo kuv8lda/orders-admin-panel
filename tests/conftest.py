@@ -1,8 +1,6 @@
 """Shared pytest fixtures for the Orders Admin Panel test suite."""
 from __future__ import annotations
 
-import os
-import tempfile
 from collections.abc import Iterator
 from typing import Any
 
