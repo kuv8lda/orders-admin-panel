@@ -34,35 +34,49 @@ CREATE TABLE IF NOT EXISTS order_events (
 );
 """
 
-# Demo business: a small home bakery taking orders in Telegram / WhatsApp.
-# Prices are stored in kopecks (RUB cents).
+# Демо-бизнес: вымышленная пекарня «Хлебный день», заказы из Telegram.
+# Цены в копейках. Каталог совпадает с тем, что показывают визитка и бот.
 PRODUCT_CATALOGUE: list[tuple[str, int]] = [
-    ("Medovik cake, 1 kg", 240000),
-    ("New York cheesecake", 320000),
-    ("Croissant box (6 pcs)", 115000),
-    ("Eclairs (8 pcs)", 144000),
-    ("Cupcakes (12 pcs)", 216000),
-    ("Cherry pie", 110000),
-    ("Weekly bread subscription", 189000),
-    ("Ginger cookie box", 78000),
-    ("Rosemary focaccia", 39000),
+    ("Медовик, 1 кг", 240000),
+    ("Чизкейк «Нью-Йорк»", 320000),
+    ("Набор круассанов (6 шт.)", 115000),
+    ("Эклеры (8 шт.)", 144000),
+    ("Капкейки (12 шт.)", 216000),
+    ("Вишнёвый пирог", 110000),
+    ("Хлебная подписка на неделю", 189000),
+    ("Набор имбирного печенья", 78000),
+    ("Фокачча с розмарином", 39000),
 ]
 
+# Вымышленные клиенты: случайные сочетания частых имён и фамилий.
 _CUSTOMER_NAMES: list[str] = [
-    "Anna Smirnova", "Dmitry Kuznetsov", "Elena Popova", "Sergey Volkov",
-    "Olga Morozova", "Ivan Novikov", "Maria Fedorova", "Alexey Lebedev",
-    "Natalia Sokolova", "Pavel Egorov", "Tatiana Kozlova", "Andrey Orlov",
-    "Irina Belova", "Mikhail Zaitsev", "Ekaterina Pavlova", "Nikita Semenov",
-    "Svetlana Golubeva", "Roman Vinogradov", "Yulia Titova", "Artem Kiselev",
-    "Daria Makarova", "Vladimir Frolov", "Polina Zhukova", "Kirill Medvedev",
-    "Alina Tikhonova", "Denis Komarov", "Oksana Davydova", "Maxim Gusev",
-    "Vera Sorokina", "Igor Belyaev", "Larisa Kalinina", "Stepan Rodionov",
-    "Zoya Nikitina", "Gleb Sidorov", "Alisa Ershova", "Timur Safin",
-    "Karina Abramova", "Oleg Panov", "Marina Dorofeeva", "Yaroslav Isaev",
-    "Valeria Ermakova", "Anton Shishkin", "Lyubov Fomina", "Ruslan Galkin",
-    "Diana Kuzmina", "Evgeny Loginov", "Sofia Antonova", "Boris Kovalev",
-    "Nastya Shubina", "Leonid Maslov", "Vika Yakovleva", "Fedor Ponomarev",
+    "Анна Смирнова", "Дмитрий Кузнецов", "Елена Попова", "Сергей Волков",
+    "Ольга Морозова", "Иван Новиков", "Мария Фёдорова", "Алексей Лебедев",
+    "Наталья Соколова", "Павел Егоров", "Татьяна Козлова", "Андрей Орлов",
+    "Ирина Белова", "Михаил Зайцев", "Екатерина Павлова", "Никита Семёнов",
+    "Светлана Голубева", "Роман Виноградов", "Юлия Титова", "Артём Киселёв",
+    "Дарья Макарова", "Владимир Фролов", "Полина Жукова", "Кирилл Медведев",
+    "Алина Тихонова", "Денис Комаров", "Оксана Давыдова", "Максим Гусев",
+    "Вера Сорокина", "Игорь Беляев", "Лариса Калинина", "Степан Родионов",
+    "Зоя Никитина", "Глеб Сидоров", "Алиса Ершова", "Тимур Сафин",
+    "Карина Абрамова", "Олег Панов", "Марина Дорофеева", "Ярослав Исаев",
+    "Валерия Ермакова", "Антон Шишкин", "Любовь Фомина", "Руслан Галкин",
+    "Диана Кузьмина", "Евгений Логинов", "София Антонова", "Борис Ковалёв",
+    "Настя Шубина", "Леонид Маслов", "Виктория Яковлева", "Фёдор Пономарёв",
 ]
+
+_TRANSLIT = dict(zip(
+    "абвгдеёжзийклмнопрстуфхцчшщъыьэюя",
+    ["a", "b", "v", "g", "d", "e", "e", "zh", "z", "i", "y", "k", "l", "m", "n",
+     "o", "p", "r", "s", "t", "u", "f", "kh", "ts", "ch", "sh", "shch", "",
+     "y", "", "e", "yu", "ya"],
+))
+
+
+def _email_local(name: str) -> str:
+    """«Анна Смирнова» -> «anna.smirnova» (латиница для демо-адресов)."""
+    letters = "".join(_TRANSLIT.get(c, c) for c in name.lower() if c.isalpha() or c == " ")
+    return letters.strip().replace(" ", ".")
 
 
 def utcnow() -> datetime:
@@ -142,7 +156,7 @@ def init_db(app: flask.Flask) -> None:
 
 
 def seed_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None:
-    """Insert ~60 orders across 60 days with consistent event history.
+    """Вставить ~60 заказов за 60 дней с согласованной историей статусов.
 
     Deterministic when called on an empty table using the same seed.
     """
@@ -196,8 +210,7 @@ def seed_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None:
 
         product, price = rng.choice(PRODUCT_CATALOGUE)
         customer = rng.choice(_CUSTOMER_NAMES)
-        email_local = "".join(c for c in customer.lower() if c.isalpha() or c == " ")
-        email_local = email_local.replace(" ", ".")
+        email_local = _email_local(customer)
         email_domain = rng.choice(["example.com", "example.org", "example.net"])
         customer_email = f"{email_local}@{email_domain}"
 
