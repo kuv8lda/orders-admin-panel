@@ -863,7 +863,7 @@ function initDashboardUI() {
   });
 
   $("#exportBtn").addEventListener("click", exportCsv);
-  $("#resetDemoBtn").addEventListener("click", resetDemoData);
+  $("#resetDemoBtn")?.addEventListener("click", resetDemoData);
   $("#newOrderForm").addEventListener("submit", submitNewOrder);
 
   $("#drawerClose").addEventListener("click", closeOrderDrawer);

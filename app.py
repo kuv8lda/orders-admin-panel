@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import os
 import re
 from collections.abc import Callable
@@ -21,6 +22,7 @@ from flask import (
     Flask,
     Response,
     abort as flask_abort,
+    current_app,
     g,
     jsonify,
     make_response,
@@ -32,6 +34,7 @@ from flask import (
     url_for,
 )
 from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import auth as auth_mod
 from auth import (
@@ -57,6 +60,27 @@ from db import (
 # ---------------------------------------------------------------------------
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
+log = logging.getLogger("orders")
+
+_FALSE_VALUES = frozenset(("", "0", "false", "off", "no"))
+
+
+def _env_flag(name: str, default: str = "0") -> bool:
+    return os.environ.get(name, default).strip().lower() not in _FALSE_VALUES
+
+
+def _configure_logging() -> None:
+    level_name = os.environ.get("LOG_LEVEL", "INFO").strip().upper()
+    level = getattr(logging, level_name, logging.INFO)
+    if not isinstance(level, int):
+        level = logging.INFO
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
+    log.setLevel(level)
 
 API_ALLOWLIST_NO_AUTH: set[tuple[str, str]] = {
     ("POST", "/api/login"),
@@ -137,6 +161,7 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     ``DATABASE_PATH=':memory:'``, ``TESTING=True``, a fixed ``SECRET_KEY``,
     or a pre-computed ``ADMIN_PASSWORD_HASH``.
     """
+    _configure_logging()
     app = Flask(__name__, static_folder=None)
     instance_path = config.pop("INSTANCE_PATH", None) if config else None
     if instance_path:
@@ -167,8 +192,16 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
         for key, value in config.items():
             app.config[key] = value
 
+    if "DEMO_MODE" not in app.config:
+        app.config["DEMO_MODE"] = _env_flag("DEMO_MODE")
+    app.config["DEMO_MODE"] = bool(app.config["DEMO_MODE"])
+    if "TRUST_PROXY" not in app.config:
+        app.config["TRUST_PROXY"] = _env_flag("TRUST_PROXY")
+
     username_env = os.environ.get("ADMIN_USERNAME") or None
     password_env = os.environ.get("ADMIN_PASSWORD") or None
+    if not app.config["DEMO_MODE"] and not app.config.get("ADMIN_PASSWORD_HASH"):
+        _require_real_password(password_env)
     u, h = auth_mod.get_admin_credentials(
         username_override=username_env,
         password_override=password_env,
@@ -177,6 +210,10 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     app.config["ADMIN_USERNAME"] = u
     app.config["ADMIN_PASSWORD_HASH"] = h
     app.secret_key = app.config["SECRET_KEY"]
+
+    if app.config["TRUST_PROXY"]:
+        # Один доверенный реверс-прокси: берём последний адрес из X-Forwarded-For.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)  # type: ignore[method-assign]
 
     _configure_session_cookie(app)
 
@@ -187,14 +224,32 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     _register_routes(app)
 
     init_db(app)
+    log.info(
+        "app ready: demo_mode=%s trust_proxy=%s integrations=%s",
+        app.config["DEMO_MODE"],
+        app.config["TRUST_PROXY"],
+        "on" if app.config.get("BOT_API_TOKEN") else "off",
+    )
     return app
+
+
+def _require_real_password(password: str | None) -> None:
+    """Вне демо-режима не стартуем с пустым или паролем по умолчанию."""
+    if not password or password == DEFAULT_PASSWORD:
+        raise RuntimeError(
+            "DEMO_MODE=0: задайте ADMIN_PASSWORD (не пустой и не '"
+            + DEFAULT_PASSWORD
+            + "'). Для публичного демо запустите с DEMO_MODE=1."
+        )
 
 
 def _configure_session_cookie(app: Flask) -> None:
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=not app.config.get("DEBUG", False),
+        SESSION_COOKIE_SECURE=(
+            not app.config.get("DEBUG", False) and _env_flag("COOKIE_SECURE", "1")
+        ),
     )
 
 
@@ -229,8 +284,10 @@ def _after_security_headers(response: Response) -> Response:
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if not current_app.config.get("DEBUG", False):
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     path = request.path
-    if path == "/dashboard" or path.startswith("/api/"):
+    if path == "/dashboard" or path.startswith("/api/") or path == "/healthz":
         response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -291,6 +348,12 @@ def _send_static(subdir: str, path: str) -> Response:
 
 
 
+
+
+def _render_page(name: str) -> str:
+    with open(os.path.join(ROOT, name), "r", encoding="utf-8") as fh:
+        source = fh.read()
+    return render_template_string(source, demo_mode=bool(current_app.config["DEMO_MODE"]))
 
 
 def _validate_email(value: str) -> bool:
@@ -374,18 +437,22 @@ def _register_routes(app: Flask) -> None:
     def p_admin() -> Response:
         if _is_authed():
             return redirect("/dashboard", code=302)
-        return make_response(render_template_string(open(os.path.join(ROOT, "admin.html"), "r", encoding="utf-8").read()))
+        return make_response(_render_page("admin.html"))
 
     @get("/dashboard")
     def p_dashboard() -> Response:
         if not _is_authed():
             next_url = "/dashboard"
             return redirect(f"/admin?next={next_url}", code=302)
-        return make_response(render_template_string(open(os.path.join(ROOT, "dashboard.html"), "r", encoding="utf-8").read()))
+        return make_response(_render_page("dashboard.html"))
 
     @get("/dashboard.html")
     def p_dashboard_legacy() -> Response:
         return redirect("/dashboard", code=301)
+
+    @get("/healthz")
+    def p_healthz() -> Response:
+        return jsonify({"status": "ok"})
 
     # ---- Static assets (whitelisted directories) --------------------------
 
@@ -407,6 +474,7 @@ def _register_routes(app: Flask) -> None:
     def a_login() -> Response:
         remote = request.remote_addr or "unknown"
         if not check_rate_limit(remote, max_attempts=5, window_sec=60):
+            log.warning("login rate limited ip=%s", remote)
             wait = seconds_until_reset(remote, 60)
             return (
                 jsonify(
@@ -425,7 +493,9 @@ def _register_routes(app: Flask) -> None:
         ok_user = username == expected_user
         ok_pass = verify_password(expected_hash, password)
         if not (ok_user and ok_pass):
+            log.warning("login failed ip=%s", remote)
             return jsonify({"error": "invalid_credentials"}), 401
+        log.info("login ok ip=%s", remote)
         session.clear()
         session["admin"] = True
         token = csrf_token()
@@ -847,12 +917,15 @@ def _register_routes(app: Flask) -> None:
             )
         return jsonify(out)
 
-    @post("/api/demo/reset")
-    def a_demo_reset() -> Response:
-        _admin_only()
-        conn = get_db()
-        reset_demo_orders(conn, rng_seed=42)
-        return jsonify({"ok": True})
+    if app.config["DEMO_MODE"]:
+
+        @post("/api/demo/reset")
+        def a_demo_reset() -> Response:
+            _admin_only()
+            conn = get_db()
+            reset_demo_orders(conn, rng_seed=42)
+            log.info("demo data reset")
+            return jsonify({"ok": True})
 
     # ---- Catch-all: 404 ----------------------------------------------------
 
@@ -887,10 +960,11 @@ if __name__ == "__main__":
     _ensure_instance()
     application = create_app()
     print(
-        f" * Orders Admin Panel starting on http://127.0.0.1:5000\n"
-        f" * Demo login: {application.config['ADMIN_USERNAME']} / {DEFAULT_PASSWORD}\n"
+        " * Orders Admin Panel: http://127.0.0.1:5000\n"
         f" * Database: {application.config['DATABASE_PATH']}"
     )
+    if application.config["DEMO_MODE"]:
+        print(f" * Демо-режим. Логин: {application.config['ADMIN_USERNAME']} / {DEFAULT_PASSWORD}")
     application.run(
         host="127.0.0.1",
         port=5000,

@@ -39,6 +39,7 @@ def app() -> Iterator[Any]:
         "ADMIN_USERNAME": "admin",
         "ADMIN_PASSWORD_HASH": TEST_PASSWORD_HASH,
         "DEBUG": False,
+        "DEMO_MODE": True,
     }
     application = create_app(config)
     yield application

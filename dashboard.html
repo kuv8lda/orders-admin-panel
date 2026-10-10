@@ -22,9 +22,11 @@
         <button class="icon-btn" id="collapseBtn" aria-label="Toggle sidebar"><i class="fa-solid fa-bars"></i></button>
         <h2>Dashboard</h2>
         <div class="clock" id="clock">00:00:00</div>
+        {% if demo_mode %}
         <button class="btn btn-ghost" id="resetDemoBtn" type="button" title="Reset demo data">
           <i class="fa-solid fa-rotate"></i> Reset data
         </button>
+        {% endif %}
         <button class="btn btn-ghost" id="exportBtn" type="button">
           <i class="fa-solid fa-file-csv"></i> Export CSV
         </button>

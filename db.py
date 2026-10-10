@@ -130,13 +130,13 @@ def close_db(_exc: BaseException | None = None) -> None:
 
 
 def init_db(app: flask.Flask) -> None:
-    """Create schema and seed demo orders (idempotent)."""
+    """Create schema; seed demo orders only when DEMO_MODE is on (idempotent)."""
     with app.app_context():
         conn = get_db()
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
         order_count = conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
-        if order_count == 0:
+        if order_count == 0 and app.config.get("DEMO_MODE"):
             seed_demo_orders(conn, rng_seed=42)
             conn.commit()
 

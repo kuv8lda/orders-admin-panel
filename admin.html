@@ -13,6 +13,7 @@
       <h2 style="margin-bottom:6px">Orders Admin Panel</h2>
       <p class="lead">A panel for small businesses that take orders in messengers and keep them in spreadsheets: one table with statuses, search, CSV export and sales stats.</p>
 
+      {% if demo_mode %}
       <div class="demo-box">
         <div><b>Demo username:</b> admin</div>
         <div><b>Demo password:</b> password123</div>
@@ -22,6 +23,7 @@
           </button>
         </div>
       </div>
+      {% endif %}
 
       <div class="inline-error hidden" id="loginError"></div>
       <div class="ratelimit-note hidden" id="rateNote"></div>
