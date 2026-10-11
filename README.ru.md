@@ -128,7 +128,7 @@ docker compose up --build
 - Любой `/api/*` без сессии закрыт, исключения перечислены явно. Новый эндпоинт по умолчанию требует вход.
 - CSRF-токен на каждый `POST`/`PATCH`/`DELETE`.
 - Заголовки: `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Strict-Transport-Security` (вне режима отладки), `Cache-Control: no-store` для `/dashboard`, `/api/*` и `/healthz`.
-- Chart.js и Font Awesome пока загружаются с CDN (jsDelivr и cdnjs), поэтому они разрешены в CSP. Локальная копия в планах, после неё хосты из политики уберутся.
+- Никаких внешних запросов: Chart.js и иконки лежат в репозитории (`js/vendor`, `css/vendor`), политика CSP разрешает только свой origin.
 - Ограничение попыток входа хранится в памяти процесса, поэтому Docker-образ запускает один процесс gunicorn (с потоками). За реверс-прокси включите `TRUST_PROXY=1`.
 - Статика отдаётся только из `css/`, `js/`, `img/`; всё остальное, включая попытки выйти из папки, возвращает 404.
 - Запросы к базе параметризованы. Данные пользователя выводятся через `textContent`, не через `innerHTML`.
@@ -141,7 +141,8 @@ auth.py              ключ сессий, пароль, ограничение
 db.py                SQLite, схема, демо-данные
 admin.html           страница входа
 dashboard.html       панель: показатели, графики, таблица
-css/ js/ img/        статика
+css/ js/ img/        статика (css/vendor, js/vendor: сторонние файлы)
+scripts/             build_icons.py: сборка css/vendor/fa-icons.css из SVG
 tests/               тесты pytest
 Dockerfile, docker-compose.yml
 .env.example
@@ -165,6 +166,11 @@ gunicorn --workers 1 --threads 4 --bind 127.0.0.1:8000 'app:create_app()'
 
 Один рабочий процесс нужен из-за ограничения попыток входа в памяти. Переменные (`SECRET_KEY`, `ADMIN_PASSWORD`, `DEMO_MODE=0`, `TRUST_PROXY=1`) задайте через systemd или compose. TLS обеспечивает реверс-прокси.
 
+## Сторонние файлы
+
+- [Chart.js](https://www.chartjs.org) 4.5.1, лицензия MIT (`js/vendor/chart.umd.min.js`, текст лицензии в `js/vendor/chart.js.LICENSE.md`).
+- Иконки [Font Awesome Free](https://fontawesome.com) 7.3.1, лицензия CC BY 4.0 (`css/vendor/fa-icons.css`, текст лицензии в `css/vendor/fontawesome.LICENSE.txt`). Из набора взяты только используемые иконки стиля solid, CSS собирается командой `python scripts/build_icons.py --svg-dir <папка svgs/solid>`.
+
 ## Лицензия
 
-MIT, см. [LICENSE](LICENSE).
+MIT, см. [LICENSE](LICENSE). Сторонние файлы распространяются на своих условиях (см. выше).

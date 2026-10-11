@@ -47,6 +47,10 @@ pip install -r requirements-dev.txt
 ruff check . && pytest -q
 ```
 
+## Third-party files
+
+Chart.js 4.5.1 (MIT) in `js/vendor`; Font Awesome Free 7.3.1 icons (CC BY 4.0) as a generated `css/vendor/fa-icons.css` (see `scripts/build_icons.py`). No external requests at runtime.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
