@@ -103,14 +103,13 @@ ORDER_SORT_WHITELIST: frozenset[str] = frozenset(
     ("id", "customer_name", "product", "amount_cents", "status", "created_at")
 )
 
-# Chart.js и Font Awesome пока грузятся с CDN. Когда файлы лягут в js/vendor и
-# css/vendor, оба хоста отсюда нужно убрать.
+# Все скрипты, стили и иконки отдаются с того же origin (js/vendor, css/vendor).
 CONTENT_SECURITY_POLICY = "; ".join(
     (
         "default-src 'self'",
-        "script-src 'self' https://cdn.jsdelivr.net",
-        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
-        "font-src 'self' https://cdnjs.cloudflare.com",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self'",
         "img-src 'self' data:",
         "connect-src 'self'",
         "object-src 'none'",
