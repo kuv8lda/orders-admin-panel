@@ -67,7 +67,7 @@ docker compose up --build
 | `LOG_LEVEL` | Уровень логов | `INFO` |
 | `BOT_API_TOKEN` | Токен интеграции с ботом | не задан |
 
-`BOT_API_TOKEN` зарезервирован под интеграцию с Telegram-ботом, пока ни на что не влияет.
+`BOT_API_TOKEN` включает интеграцию с Telegram-ботом (`/api/integrations/*`, заголовок `Authorization: Bearer`). Не задан: эндпоинты отвечают 404. Короче 32 символов: панель не стартует.
 
 ## Статусы заказов
 

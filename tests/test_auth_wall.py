@@ -17,6 +17,8 @@ def test_protected_api_endpoints_return_401_without_session(app, client):
     for rule in app.url_map.iter_rules():
         if not rule.rule.startswith("/api/"):
             continue
+        if rule.rule.startswith("/api/integrations/"):
+            continue  # токен вместо сессии: см. test_integrations_auth.py
         if rule.rule.endswith("/<path:path>") or "<" in rule.rule:
             continue
         for method in rule.methods or {"GET"}:

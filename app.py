@@ -8,6 +8,7 @@ Run directly:
 from __future__ import annotations
 
 import csv
+import hmac
 import io
 import logging
 import os
@@ -82,6 +83,9 @@ API_ALLOWLIST_NO_AUTH: set[tuple[str, str]] = {
     ("POST", "/api/login"),
     ("GET", "/api/me"),
 }
+
+INTEGRATIONS_PREFIX = "/api/integrations"
+BOT_TOKEN_MIN_LEN = 32
 
 CSRF_EXEMPT: set[tuple[str, str]] = {
     ("POST", "/api/login"),
@@ -210,6 +214,13 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     if "TRUST_PROXY" not in app.config:
         app.config["TRUST_PROXY"] = _env_flag("TRUST_PROXY")
 
+    if "BOT_API_TOKEN" not in app.config:
+        app.config["BOT_API_TOKEN"] = os.environ.get("BOT_API_TOKEN", "").strip() or None
+    bot_token = app.config["BOT_API_TOKEN"]
+    if bot_token and len(bot_token) < BOT_TOKEN_MIN_LEN:
+        raise RuntimeError(f"BOT_API_TOKEN: минимум {BOT_TOKEN_MIN_LEN} символов.")
+    app.config["BOT_API_TOKEN"] = bot_token or None
+
     username_env = os.environ.get("ADMIN_USERNAME") or None
     password_env = os.environ.get("ADMIN_PASSWORD") or None
     if not app.config["DEMO_MODE"] and not app.config.get("ADMIN_PASSWORD_HASH"):
@@ -275,6 +286,9 @@ def _before_request_guard() -> Response | None:
     method = request.method
     endpoint_key = (method, path)
 
+    if path == INTEGRATIONS_PREFIX or path.startswith(INTEGRATIONS_PREFIX + "/"):
+        return _integration_guard()
+
     if path.startswith("/api/"):
         if endpoint_key not in API_ALLOWLIST_NO_AUTH:
             if not session.get("admin"):
@@ -289,6 +303,24 @@ def _before_request_guard() -> Response | None:
             provided = request.headers.get("X-CSRF-Token") or ""
             if not expected or not provided or expected != provided:
                 return _json_error("csrf", 403)
+    return None
+
+
+def _integration_guard() -> Response | None:
+    """Интеграция с ботом: выключена без токена; иначе нужен валидный Bearer.
+
+    Валидный токен заменяет сессию и CSRF только для этого префикса.
+    Сессия администратора здесь не засчитывается.
+    """
+    token = current_app.config.get("BOT_API_TOKEN")
+    if not token:
+        return jsonify({"error": "not_found"}), 404
+    header = request.headers.get("Authorization") or ""
+    scheme, _, candidate = header.partition(" ")
+    if scheme.lower() != "bearer" or not candidate:
+        return _json_error("unauthorized", 401)
+    if not hmac.compare_digest(candidate.strip().encode("utf-8"), token.encode("utf-8")):
+        return _json_error("unauthorized", 401)
     return None
 
 
@@ -943,6 +975,16 @@ def _register_routes(app: Flask) -> None:
             reset_demo_orders(conn, rng_seed=42)
             log.info("demo data reset")
             return jsonify({"ok": True})
+
+    # ---- Интеграция с ботом (/api/integrations/*, токен проверяет guard) ----
+
+    @app.get("/api/integrations/catalog")
+    def i_catalog() -> Response:
+        items = [
+            {"id": i, "name": name, "price_cents": price}
+            for i, (name, price) in enumerate(PRODUCT_CATALOGUE, start=1)
+        ]
+        return jsonify(items)
 
     # ---- Catch-all: 404 ----------------------------------------------------
 

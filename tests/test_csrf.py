@@ -59,3 +59,13 @@ def test_mutating_request_with_wrong_csrf_value_returns_403(authed):
         headers={"X-CSRF-Token": "completely-wrong-token"},
     )
     assert resp.status_code == 403
+
+
+def test_integration_token_needs_no_csrf_but_session_post_still_does(authed):
+    """Токен освобождает только /api/integrations/*; обычные POST по-прежнему требуют CSRF."""
+    from tests.test_integrations_auth import TOKEN, _make
+    c = _make(TOKEN).test_client()
+    assert c.get("/api/integrations/catalog",
+                 headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 200
+    client, _ = authed
+    assert client.post("/api/orders", json=_create_order_payload()).status_code == 403

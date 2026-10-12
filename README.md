@@ -32,7 +32,7 @@ docker compose up --build                   # http://localhost:5000
 
 ## Configuration
 
-See [`.env.example`](.env.example): `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `DEMO_MODE`, `FLASK_DEBUG`, `DATABASE_PATH`, `TRUST_PROXY`, `COOKIE_SECURE`, `LOG_LEVEL`, `BOT_API_TOKEN` (reserved for the Telegram bot integration, currently unused). The app does not read `.env` itself; export the variables or pass the file to Docker.
+See [`.env.example`](.env.example): `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `DEMO_MODE`, `FLASK_DEBUG`, `DATABASE_PATH`, `TRUST_PROXY`, `COOKIE_SECURE`, `LOG_LEVEL`, `BOT_API_TOKEN` (Telegram bot integration under `/api/integrations/*`; disabled with 404 when unset, min 32 chars). The app does not read `.env` itself; export the variables or pass the file to Docker.
 
 ## Order statuses
 
