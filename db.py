@@ -160,7 +160,8 @@ def seed_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None:
     Deterministic when called on an empty table using the same seed.
     """
     rng = random.Random(rng_seed)
-    today = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    now = utcnow()
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     total_orders = 60
 
     statuses_order = ["pending", "paid", "shipped", "completed", "cancelled"]
@@ -170,7 +171,9 @@ def seed_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None:
         day = today - timedelta(days=days_ago)
         hour = rng.randint(6, 22)
         minute = rng.randint(0, 59)
-        created_at = day.replace(hour=hour, minute=minute).isoformat()
+        # Случайный час сегодняшних суток может оказаться позже "сейчас": не пускаем в будущее.
+        created_dt = min(day.replace(hour=hour, minute=minute), now)
+        created_at = created_dt.isoformat()
         updated_at = created_at
 
         skew = days_ago / max(1, total_orders - 1)  # 0=newest, 1=oldest
@@ -234,10 +237,10 @@ def seed_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None:
             else:
                 path = (None, "pending", "paid", "cancelled")
 
-        event_time = day.replace(hour=hour, minute=minute)
+        event_time = created_dt
         pair_iter = list(zip(path, tuple(path)[1:]))  # type: ignore[arg-type]
         for i, (from_s, to_s) in enumerate(pair_iter):
-            event_dt = event_time + timedelta(minutes=i * rng.randint(30, 240))
+            event_dt = min(event_time + timedelta(minutes=i * rng.randint(30, 240)), now)
             conn.execute(
                 "INSERT INTO order_events (order_id, from_status, to_status, created_at)"
                 " VALUES (?,?,?,?)",

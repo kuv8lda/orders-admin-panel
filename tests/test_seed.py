@@ -25,3 +25,14 @@ def test_seeded_orders_use_catalogue_and_cyrillic_names(app, app_context):
         assert catalogue[r["product"]] == r["amount_cents"]
         assert re.search(r"[А-Яа-я]", r["customer_name"])
         assert re.fullmatch(r"[a-z.]+@example\.(com|org|net)", r["customer_email"])
+
+
+def test_seeded_timestamps_are_never_in_the_future(app, app_context):
+    from datetime import datetime
+
+    now = db_mod.utcnow()
+    conn = db_mod.get_db()
+    stamps = [r[0] for r in conn.execute("SELECT created_at FROM orders")]
+    stamps += [r[0] for r in conn.execute("SELECT created_at FROM order_events")]
+    assert stamps
+    assert all(datetime.fromisoformat(s) <= now for s in stamps)
