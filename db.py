@@ -142,12 +142,59 @@ def close_db(_exc: BaseException | None = None) -> None:
         conn.close()
 
 
+SCHEMA_VERSION = 1
+
+_ORDERS_V1_COLUMNS: list[tuple[str, str]] = [
+    ("source", "TEXT NOT NULL DEFAULT 'panel' CHECK (source IN ('panel','telegram'))"),
+    ("customer_phone", "TEXT"),
+    ("telegram_user_id", "INTEGER"),
+    ("telegram_username", "TEXT"),
+    ("delivery_date", "TEXT"),
+    ("idempotency_key", "TEXT"),
+]
+
+_ORDER_ITEMS_SQL = """
+CREATE TABLE IF NOT EXISTS order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id         INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product          TEXT NOT NULL,
+    unit_price_cents INTEGER NOT NULL CHECK (unit_price_cents > 0),
+    quantity         INTEGER NOT NULL CHECK (quantity BETWEEN 1 AND 20)
+);
+CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+"""
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    """Идемпотентная миграция схемы через PRAGMA user_version."""
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version >= SCHEMA_VERSION:
+        return
+    if version < 1:
+        have = {r[1] for r in conn.execute("PRAGMA table_info(orders)")}
+        for name, ddl in _ORDERS_V1_COLUMNS:
+            if name not in have:
+                conn.execute(f"ALTER TABLE orders ADD COLUMN {name} {ddl}")
+        # SQLite не умеет ADD COLUMN ... UNIQUE: уникальность через индекс.
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_idem"
+            " ON orders(idempotency_key)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_orders_tg_user ON orders(telegram_user_id)"
+        )
+        conn.executescript(_ORDER_ITEMS_SQL)
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    conn.commit()
+
+
 def init_db(app: flask.Flask) -> None:
     """Create schema; seed demo orders only when DEMO_MODE is on (idempotent)."""
     with app.app_context():
         conn = get_db()
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
+        migrate(conn)
         order_count = conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
         if order_count == 0 and app.config.get("DEMO_MODE"):
             seed_demo_orders(conn, rng_seed=42)
