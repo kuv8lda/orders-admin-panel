@@ -6,7 +6,9 @@ An admin panel for a small business that takes orders in messengers: one table w
 
 A learning project by a beginner developer. The demo runs on invented data.
 
-![Orders panel, light theme](img/orders-panel.png)
+![Orders panel, light theme](img/dashboard-light.png)
+
+![Dark theme](img/dashboard-dark.png)
 
 ## Quick start
 
