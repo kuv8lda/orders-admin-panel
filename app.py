@@ -43,6 +43,7 @@ from auth import (
     verify_password,
 )
 from db import (
+    PRODUCT_CATALOGUE,
     close_db,
     get_db,
     init_db,
@@ -365,7 +366,11 @@ def _send_static(subdir: str, path: str) -> Response:
 def _render_page(name: str) -> str:
     with open(os.path.join(ROOT, name), "r", encoding="utf-8") as fh:
         source = fh.read()
-    return render_template_string(source, demo_mode=bool(current_app.config["DEMO_MODE"]))
+    return render_template_string(
+        source,
+        demo_mode=bool(current_app.config["DEMO_MODE"]),
+        product_names=[name for name, _price in PRODUCT_CATALOGUE],
+    )
 
 
 def _validate_email(value: str) -> bool:

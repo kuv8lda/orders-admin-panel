@@ -1,11 +1,14 @@
 const MONEY = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB", maximumFractionDigits: 0 });
 
+const { t, tn } = I18N;
+
+// Подписи статусов берутся из словаря в момент обращения, поэтому следуют за языком.
 const STATUS_LABEL = {
-  pending: "Pending",
-  paid: "Paid",
-  shipped: "Shipped",
-  completed: "Completed",
-  cancelled: "Cancelled",
+  get pending() { return t("status.pending"); },
+  get paid() { return t("status.paid"); },
+  get shipped() { return t("status.shipped"); },
+  get completed() { return t("status.completed"); },
+  get cancelled() { return t("status.cancelled"); },
 };
 
 const STATUS_NEXT = {
@@ -24,7 +27,7 @@ const STATUS_COLORS = {
   cancelled: "#dc2626",
 };
 
-const REL_TIME = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const relFmt = () => new Intl.RelativeTimeFormat(I18N.getLang(), { numeric: "auto" });
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function el(tag, props, children) {
@@ -53,16 +56,16 @@ function formatMoney(cents) {
 function relativeTime(iso) {
   const diff = new Date(iso).getTime() - Date.now();
   const absSec = Math.round(diff / 1000);
-  if (Math.abs(absSec) < 60) return REL_TIME.format(absSec, "second");
+  if (Math.abs(absSec) < 60) return relFmt().format(absSec, "second");
   const absMin = Math.round(absSec / 60);
-  if (Math.abs(absMin) < 60) return REL_TIME.format(absMin, "minute");
+  if (Math.abs(absMin) < 60) return relFmt().format(absMin, "minute");
   const absHr = Math.round(absMin / 60);
-  if (Math.abs(absHr) < 24) return REL_TIME.format(absHr, "hour");
+  if (Math.abs(absHr) < 24) return relFmt().format(absHr, "hour");
   const absDay = Math.round(absHr / 24);
-  if (Math.abs(absDay) < 30) return REL_TIME.format(absDay, "day");
+  if (Math.abs(absDay) < 30) return relFmt().format(absDay, "day");
   const absMo = Math.round(absDay / 30);
-  if (Math.abs(absMo) < 12) return REL_TIME.format(absMo, "month");
-  return REL_TIME.format(Math.round(absMo / 12), "year");
+  if (Math.abs(absMo) < 12) return relFmt().format(absMo, "month");
+  return relFmt().format(Math.round(absMo / 12), "year");
 }
 
 function badge(status) {
@@ -178,7 +181,7 @@ async function refreshStats() {
     lastStatsDays = days;
   } catch (err) {
     if (err instanceof OrdersApp.ApiError) {
-      OrdersApp.toast("Failed to load stats: " + err.message, "error");
+      OrdersApp.toast(t("toast.stats_failed", { error: I18N.apiMessage(err.message) }), "error");
     }
   }
 }
@@ -241,7 +244,7 @@ function renderRevenueChart(data) {
     data: {
       labels,
       datasets: [{
-        label: "Revenue (RUB)",
+        label: t("chart.revenue_label"),
         data: values,
         fill: true,
         tension: 0.35,
@@ -334,7 +337,7 @@ function renderTopProducts(data) {
   if (!list.length) {
     root.appendChild(el("div", { class: "empty-state" }, [
       el("i", { class: "fa-solid fa-box-open" }),
-      el("div", {}, ["No product data"]),
+      el("div", {}, [t("top.empty")]),
     ]));
     return;
   }
@@ -346,7 +349,7 @@ function renderTopProducts(data) {
       el("div", { style: "min-width:140px;flex:1" }, [
         el("div", { style: "font-weight:700;font-size:0.88rem" }, [p.product]),
         el("small", { class: "lead", style: "display:block;font-size:0.75rem" }, [
-          `${p.orders} orders · ${formatMoney(p.revenue_cents)}`,
+          `${tn("top.orders", p.orders)} · ${formatMoney(p.revenue_cents)}`,
         ]),
       ]),
       bar,
@@ -369,20 +372,19 @@ function renderActivity(items) {
   if (!items || !items.length) {
     root.appendChild(el("div", { class: "empty-state" }, [
       el("i", { class: "fa-solid fa-clock" }),
-      el("div", {}, ["No activity yet"]),
+      el("div", {}, [t("activity.empty")]),
     ]));
     return;
   }
   items.forEach((ev) => {
-    const fromLbl = ev.from_status ? STATUS_LABEL[ev.from_status] : "Created";
     const toLbl = STATUS_LABEL[ev.to_status] || ev.to_status;
     const text = ev.from_status
-      ? `${fromLbl} → ${toLbl}`
-      : `Created (${toLbl})`;
+      ? `${STATUS_LABEL[ev.from_status] || ev.from_status} → ${toLbl}`
+      : t("activity.created", { status: toLbl });
     const dot = el("span", { class: `dot ${ev.to_status === "cancelled" ? "off" : "on"}` });
     const body = el("div", {}, [
       el("div", { style: "font-weight:600;font-size:0.88rem" }, [
-        `#${ev.order_display_id} · ${ev.customer_name || "Customer"}`,
+        `#${ev.order_display_id} · ${ev.customer_name || t("activity.customer")}`,
       ]),
       el("div", { class: "lead", style: "font-size:0.82rem" }, [text]),
       el("small", {}, [relativeTime(ev.created_at)]),
@@ -437,13 +439,14 @@ function renderTableError(err) {
   td.colSpan = 7;
   const root = el("div", { class: "error-state" }, [
     el("i", { class: "fa-solid fa-triangle-exclamation" }),
-    el("div", { style: "font-weight:700;margin-bottom:4px" }, ["Could not load orders"]),
+    el("div", { style: "font-weight:700;margin-bottom:4px" }, [t("table.error_title")]),
     el("div", { class: "lead", style: "font-size:0.85rem;margin-bottom:12px" }, [
-      (err && err.message) || "Unexpected error",
+      (err && I18N.apiMessage(err.message)) || t("table.unexpected"),
     ]),
     el("button", { class: "btn btn-primary", type: "button", onclick: () => refreshTable(false) }, [
-      "<i class='fa-solid fa-rotate'></i> Retry",
-    ].map((s) => (typeof s === "string" && s.startsWith("<") ? el("span", { html: s.replace(/^<[^>]+>|<[^>]+>$/g, "") }) : s))),
+      el("i", { class: "fa-solid fa-rotate" }),
+      " " + t("btn.retry"),
+    ]),
   ]);
   td.appendChild(root);
   tr.appendChild(td);
@@ -459,7 +462,7 @@ function renderTable(data) {
     td.colSpan = 7;
     td.appendChild(el("div", { class: "empty-state" }, [
       el("i", { class: "fa-solid fa-inbox" }),
-      el("div", {}, ["No orders match your filters"]),
+      el("div", {}, [t("table.empty")]),
     ]));
     tr.appendChild(td);
     body.appendChild(tr);
@@ -516,13 +519,13 @@ function renderTable(data) {
           s === "paid" ? "<i class='fa-solid fa-credit-card' style='color:var(--ok);margin-right:6px'></i>" :
           s === "shipped" ? "<i class='fa-solid fa-truck-fast' style='color:var(--info);margin-right:6px'></i>" :
           s === "completed" ? "<i class='fa-solid fa-check' style='color:var(--primary);margin-right:6px'></i>" : "",
-          STATUS_LABEL[s],
+          t(`action.${s}`),
         ].map((x) => typeof x === "string" && x.startsWith("<") ? el("span", { html: x }) : document.createTextNode(x)));
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
           menu.classList.remove("open");
           if (isCancel) {
-            askConfirm("Cancel order", `Cancel #${o.id + 1000}? This cannot be undone.`, () =>
+            askConfirm(t("confirm.cancel_title"), t("confirm.cancel_body", { id: o.id + 1000 }), () =>
               changeStatus(o.id, "cancelled"),
             );
           } else {
@@ -534,7 +537,7 @@ function renderTable(data) {
       const toggle = el("button", {
         class: "icon-btn",
         type: "button",
-        title: "Change status",
+        title: t("table.status_menu"),
         "aria-haspopup": "true",
         onclick: (e) => {
           e.stopPropagation();
@@ -562,10 +565,10 @@ function renderPagination(data) {
   const from = total ? (curr - 1) * per + 1 : 0;
   const to = Math.min(curr * per, total);
   const info = el("span", { class: "info" }, [
-    total ? `${from}–${to} of ${total}` : "0 orders",
+    total ? t("pager.info", { from, to, total }) : t("pager.none"),
   ]);
   pag.appendChild(info);
-  const prev = el("button", { type: "button", disabled: curr <= 1 ? "disabled" : null, "aria-label": "Previous page" }, [
+  const prev = el("button", { type: "button", disabled: curr <= 1 ? "disabled" : null, "aria-label": t("pager.prev") }, [
     el("i", { class: "fa-solid fa-chevron-left" }),
   ]);
   prev.addEventListener("click", () => { state.page = Math.max(1, curr - 1); pushStateToUrl(); refreshTable(false); });
@@ -591,7 +594,7 @@ function renderPagination(data) {
     last = p;
   });
 
-  const nxt = el("button", { type: "button", disabled: curr >= pages ? "disabled" : null, "aria-label": "Next page" }, [
+  const nxt = el("button", { type: "button", disabled: curr >= pages ? "disabled" : null, "aria-label": t("pager.next") }, [
     el("i", { class: "fa-solid fa-chevron-right" }),
   ]);
   nxt.addEventListener("click", () => { state.page = Math.min(pages, curr + 1); pushStateToUrl(); refreshTable(false); });
@@ -622,7 +625,7 @@ async function changeStatus(id, status) {
       method: "PATCH",
       body: JSON.stringify({ status }),
     });
-    OrdersApp.toast(`Status changed to ${STATUS_LABEL[status]}`, "success");
+    OrdersApp.toast(t("toast.status_changed", { status: STATUS_LABEL[status] }), "success");
     closeAllStatusMenus();
     refreshStats();
     refreshActivity();
@@ -634,11 +637,11 @@ async function changeStatus(id, status) {
     }
   } catch (err) {
     if (err instanceof OrdersApp.ApiError && err.status === 409) {
-      OrdersApp.toast(err.message || "Status change not allowed", "error");
+      OrdersApp.toast(I18N.apiMessage(err.message) || t("toast.status_denied"), "error");
     } else if (err instanceof OrdersApp.ApiError) {
-      OrdersApp.toast(err.message, "error");
+      OrdersApp.toast(I18N.apiMessage(err.message), "error");
     } else {
-      OrdersApp.toast("Could not change status", "error");
+      OrdersApp.toast(t("toast.status_failed"), "error");
     }
   }
 }
@@ -668,7 +671,7 @@ async function openOrderDrawer(id) {
   drawer.classList.add("open");
   const body = $("#drawerBody");
   body.innerHTML = '<div class="skeleton" style="height:200px"></div>';
-  $("#drawerTitle").textContent = `Order #${id + 1000}`;
+  $("#drawerTitle").textContent = t("drawer.title", { id: id + 1000 });
   try {
     const order = await OrdersApp.api(`/api/orders/${id}`);
     renderOrderDrawer(order);
@@ -676,13 +679,13 @@ async function openOrderDrawer(id) {
     body.innerHTML = "";
     body.appendChild(el("div", { class: "error-state" }, [
       el("i", { class: "fa-solid fa-triangle-exclamation" }),
-      el("div", {}, ["Could not load order"]),
+      el("div", {}, [t("drawer.error")]),
       el("button", {
         class: "btn btn-primary",
         type: "button",
         style: "margin-top:10px",
         onclick: () => openOrderDrawer(id),
-      }, ["Retry"]),
+      }, [t("btn.retry")]),
     ]));
   }
 }
@@ -697,31 +700,31 @@ function renderOrderDrawer(order) {
   body.innerHTML = "";
   const grid = el("div", { style: "display:grid;gap:14px;margin-bottom:18px" });
   grid.appendChild(el("div", {}, [
-    el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, ["Status"]),
+    el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.status")]),
     badge(order.status),
   ]));
   grid.appendChild(el("div", {}, [
-    el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, ["Customer"]),
+    el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.customer")]),
     el("div", { style: "font-weight:700" }, [order.customer_name || "—"]),
     order.customer_email ? el("small", { class: "lead" }, [order.customer_email]) : null,
   ]));
   grid.appendChild(el("div", {}, [
-    el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, ["Product"]),
+    el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.product")]),
     el("div", { style: "font-weight:600" }, [order.product || "—"]),
   ]));
   grid.appendChild(el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:14px" }, [
     el("div", {}, [
-      el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, ["Amount"]),
+      el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.amount")]),
       el("div", { style: "font-weight:800" }, [formatMoney(order.amount_cents)]),
     ]),
     el("div", {}, [
-      el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, ["Created"]),
+      el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.created")]),
       el("div", { style: "font-variant-numeric:tabular-nums" }, [(order.created_at || "").replace("T", " ").slice(0, 19) + " UTC"]),
     ]),
   ]));
   if (order.note) {
     grid.appendChild(el("div", {}, [
-      el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, ["Note"]),
+      el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.note")]),
       el("div", {
         style: "background:var(--bg);padding:10px 12px;border-radius:10px;border:1px solid var(--border);white-space:pre-wrap;word-break:break-word",
       }, [order.note]),
@@ -734,11 +737,11 @@ function renderOrderDrawer(order) {
     const actionRow = el("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px" });
     nextStatuses.forEach((s) => {
       const cls = s === "cancelled" ? "btn-ghost" : "btn-primary";
-      const label = s === "cancelled" ? "Cancel order" : `Mark ${STATUS_LABEL[s]}`;
+      const label = t(`action.${s}`);
       const btn = el("button", { class: `btn ${cls}`, type: "button" }, [label]);
       btn.addEventListener("click", () => {
         if (s === "cancelled") {
-          askConfirm("Cancel order", `Cancel #${order.id + 1000}? This cannot be undone.`, () => {
+          askConfirm(t("confirm.cancel_title"), t("confirm.cancel_body", { id: order.id + 1000 }), () => {
             changeStatus(order.id, "cancelled");
           });
         } else {
@@ -750,13 +753,14 @@ function renderOrderDrawer(order) {
     body.appendChild(actionRow);
   }
 
-  const h3 = el("h3", { style: "margin-bottom:4px" }, ["History"]);
+  const h3 = el("h3", { style: "margin-bottom:4px" }, [t("drawer.history")]);
   body.appendChild(h3);
   const timeline = el("div", { class: "timeline" });
   (order.events || []).forEach((ev) => {
-    const fromLbl = ev.from_status ? STATUS_LABEL[ev.from_status] : "Created";
     const toLbl = STATUS_LABEL[ev.to_status] || ev.to_status;
-    const title = ev.from_status ? `${fromLbl} → ${toLbl}` : `Order created (${toLbl})`;
+    const title = ev.from_status
+      ? `${STATUS_LABEL[ev.from_status] || ev.from_status} → ${toLbl}`
+      : t("history.created", { status: toLbl });
     timeline.appendChild(el("div", { class: "timeline-item" }, [
       el("div", { style: "font-weight:700" }, [title]),
       el("small", {}, [(ev.created_at || "").replace("T", " ").slice(0, 19) + " UTC · " + relativeTime(ev.created_at)]),
@@ -784,7 +788,7 @@ async function submitNewOrder(e) {
     });
     OrdersApp.closeModal("newOrderModal");
     form.reset();
-    OrdersApp.toast("Order created", "success");
+    OrdersApp.toast(t("toast.order_created"), "success");
     state.page = 1;
     pushStateToUrl();
     refreshAll();
@@ -792,9 +796,9 @@ async function submitNewOrder(e) {
     if (err instanceof OrdersApp.ApiError && err.status === 422) {
       OrdersApp.renderFieldErrors(form, err.fields);
     } else if (err instanceof OrdersApp.ApiError) {
-      OrdersApp.toast(err.message, "error");
+      OrdersApp.toast(I18N.apiMessage(err.message), "error");
     } else {
-      OrdersApp.toast("Could not create order", "error");
+      OrdersApp.toast(t("toast.create_failed"), "error");
     }
   }
 }
@@ -820,18 +824,18 @@ function exportCsv() {
 
 async function resetDemoData() {
   askConfirm(
-    "Reset demo data",
-    "This will restore the original 60 demo orders. Your experiments will be lost. Continue?",
+    t("reset.title"),
+    t("reset.body"),
     async () => {
       try {
         await OrdersApp.api("/api/demo/reset", { method: "POST" });
-        OrdersApp.toast("Demo data restored", "success");
+        OrdersApp.toast(t("toast.reset_done"), "success");
         state.page = 1;
         pushStateToUrl();
         refreshAll();
       } catch (err) {
-        if (err instanceof OrdersApp.ApiError) OrdersApp.toast(err.message, "error");
-        else OrdersApp.toast("Could not reset data", "error");
+        if (err instanceof OrdersApp.ApiError) OrdersApp.toast(I18N.apiMessage(err.message), "error");
+        else OrdersApp.toast(t("toast.reset_failed"), "error");
       }
     },
   );
@@ -950,6 +954,15 @@ function initDashboardUI() {
   window.addEventListener("resize", () => {
     if (charts.revenue) charts.revenue.resize();
     if (charts.status) charts.status.resize();
+  });
+
+  I18N.onChange(() => {
+    if (charts.revenue) { charts.revenue.destroy(); charts.revenue = null; }
+    if (charts.status) { charts.status.destroy(); charts.status = null; }
+    syncUIFromState();
+    refreshAll();
+    const drawer = $("#orderDrawer");
+    if (drawer.classList.contains("open")) openOrderDrawer(Number(drawer.dataset.id));
   });
 
   const mq = window.matchMedia("(prefers-color-scheme: dark)");

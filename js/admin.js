@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("adminForm");
   const errBox = document.getElementById("loginError");
   const rateNote = document.getElementById("rateNote");
-  const next = new URLSearchParams(location.search).get("next") || "/dashboard";
+  const next = OrdersApp.safeNextPath(new URLSearchParams(location.search).get("next"));
   let rateTimer = null;
 
   function setRatelimitWait(seconds) {
@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rateNote.classList.remove("hidden");
     let remaining = Math.min(seconds, 120);
     const upd = () => {
-      rateNote.textContent = `Too many attempts. Try again in ${remaining}s.`;
+      rateNote.textContent = I18N.t("login.too_many", { s: Math.max(remaining, 0) });
       if (remaining <= 0) {
         rateNote.classList.add("hidden");
         if (rateTimer) clearInterval(rateTimer);
@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         body: JSON.stringify(data),
       });
-      OrdersApp.toast("Welcome", "success");
+      OrdersApp.toast(I18N.t("login.welcome"), "success");
       setTimeout(() => { window.location.href = next; }, 500);
     } catch (err) {
       if (err instanceof OrdersApp.ApiError) {
@@ -51,13 +51,13 @@ document.addEventListener("DOMContentLoaded", () => {
           setRatelimitWait(secs);
         } else {
           if (errBox) {
-            errBox.textContent = err.message || "Invalid credentials";
+            errBox.textContent = I18N.apiMessage(err.message) || I18N.t("login.failed");
             errBox.classList.remove("hidden");
           }
-          OrdersApp.toast(err.message || "Login failed", "error");
+          OrdersApp.toast(I18N.apiMessage(err.message) || I18N.t("login.failed"), "error");
         }
       } else {
-        OrdersApp.toast("Network error. Try again.", "error");
+        OrdersApp.toast(I18N.t("login.network"), "error");
       }
     }
   });

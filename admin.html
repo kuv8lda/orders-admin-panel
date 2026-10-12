@@ -1,26 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Orders Admin Panel — Sign in</title>
+  <title>Панель заказов — вход</title>
   <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
   <link rel="stylesheet" href="css/vendor/fa-icons.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-page="admin">
+<body data-page="admin" data-title-key="title.admin">
   <main class="login-wrap">
     <div class="card login-card" style="padding:24px">
-      <h2 style="margin-bottom:6px">Orders Admin Panel</h2>
-      <p class="lead">A panel for small businesses that take orders in messengers and keep them in spreadsheets: one table with statuses, search, CSV export and sales stats.</p>
+      <h2 style="margin-bottom:6px" data-i18n="login.heading">Панель заказов</h2>
+      <p class="lead" data-i18n="login.lead">Панель для небольшого бизнеса, который принимает заказы в мессенджерах и ведёт их в таблицах: одна таблица со статусами, поиск, выгрузка в CSV и статистика продаж.</p>
 
       {% if demo_mode %}
       <div class="demo-box">
-        <div><b>Demo username:</b> admin</div>
-        <div><b>Demo password:</b> password123</div>
+        <div><b data-i18n="login.demo_user">Логин для демо:</b> admin</div>
+        <div><b data-i18n="login.demo_pass">Пароль для демо:</b> password123</div>
         <div style="margin-top:10px">
           <button type="button" class="btn btn-ghost" id="fillDemo" style="padding:6px 12px;font-size:0.85rem">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Fill demo credentials
+            <i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n="login.fill_demo">Подставить демо-данные</span>
           </button>
         </div>
       </div>
@@ -31,18 +31,19 @@
 
       <form class="form" id="adminForm" novalidate style="margin-top:12px;gap:10px">
         <div class="field">
-          <label for="username">Username</label>
-          <input id="username" name="username" placeholder="Username" autocomplete="username" required>
+          <label for="username" data-i18n="login.username">Логин</label>
+          <input id="username" name="username" data-i18n-attr="placeholder:login.username" placeholder="Логин" autocomplete="username" required>
         </div>
         <div class="field">
-          <label for="password">Password</label>
-          <input id="password" name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+          <label for="password" data-i18n="login.password">Пароль</label>
+          <input id="password" name="password" type="password" data-i18n-attr="placeholder:login.password" placeholder="Пароль" autocomplete="current-password" required>
         </div>
-        <button class="btn btn-primary" type="submit">Sign in</button>
+        <button class="btn btn-primary" type="submit" data-i18n="login.submit">Войти</button>
       </form>
     </div>
   </main>
 
+  <script src="js/i18n.js"></script>
   <script src="js/common.js"></script>
   <script src="js/admin.js"></script>
 </body>

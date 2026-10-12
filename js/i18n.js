@@ -1,0 +1,405 @@
+/*
+ * Переводы интерфейса панели (RU по умолчанию, EN по переключателю).
+ * Формат словарей строгий: одна запись на строку, значения в двойных кавычках.
+ * Его читает tests/test_i18n.py, поэтому не меняйте оформление блоков ru/en.
+ * Формы множественного числа: ключ.one / .few / .many / .other.
+ */
+(function () {
+  const DICT = {
+  ru: {
+    "title.admin": "Панель заказов — вход",
+    "title.dashboard": "Панель заказов",
+    "lang.switch": "Сменить язык",
+    "nav.menu": "Меню",
+    "nav.theme": "Сменить тему",
+    "nav.top": "Наверх",
+    "nav.aria": "Навигация",
+    "nav.overview": "Обзор",
+    "nav.analytics": "Аналитика",
+    "nav.orders": "Заказы",
+    "auth.login": "Войти",
+    "auth.logout": "Выйти",
+    "common.cancel": "Отмена",
+    "common.close": "Закрыть",
+    "btn.retry": "Повторить",
+    "login.heading": "Панель заказов",
+    "login.lead": "Панель для небольшого бизнеса, который принимает заказы в мессенджерах и ведёт их в таблицах: одна таблица со статусами, поиск, выгрузка в CSV и статистика продаж.",
+    "login.demo_user": "Логин для демо:",
+    "login.demo_pass": "Пароль для демо:",
+    "login.fill_demo": "Подставить демо-данные",
+    "login.username": "Логин",
+    "login.password": "Пароль",
+    "login.submit": "Войти",
+    "login.welcome": "Добро пожаловать",
+    "login.failed": "Не удалось войти",
+    "login.network": "Ошибка сети. Попробуйте ещё раз.",
+    "login.too_many": "Слишком много попыток. Повторите через {s} с.",
+    "status.pending": "Ожидает оплаты",
+    "status.paid": "Оплачен",
+    "status.shipped": "Передан в доставку",
+    "status.completed": "Выполнен",
+    "status.cancelled": "Отменён",
+    "action.paid": "Отметить оплаченным",
+    "action.shipped": "Передать в доставку",
+    "action.completed": "Отметить выполненным",
+    "action.cancelled": "Отменить заказ",
+    "dash.title": "Обзор",
+    "sidebar.toggle": "Показать или скрыть меню",
+    "btn.reset_demo": "Сбросить данные",
+    "btn.reset_demo_title": "Сбросить демо-данные",
+    "btn.export": "Выгрузить CSV",
+    "btn.new_order": "Новый заказ",
+    "kpi.aria": "Показатели",
+    "kpi.revenue": "Выручка",
+    "kpi.orders": "Заказы",
+    "kpi.avg": "Средний чек",
+    "kpi.pending": "Ожидают оплаты",
+    "chart.revenue": "Выручка",
+    "chart.period": "Период",
+    "chart.days_7": "7 дн.",
+    "chart.days_30": "30 дн.",
+    "chart.days_90": "90 дн.",
+    "chart.revenue_label": "Выручка, ₽",
+    "chart.by_status": "По статусам",
+    "top.title": "Популярные позиции",
+    "top.empty": "Нет данных о позициях",
+    "top.orders.one": "{n} заказ",
+    "top.orders.few": "{n} заказа",
+    "top.orders.many": "{n} заказов",
+    "top.orders.other": "{n} заказа",
+    "activity.title": "Последние события",
+    "activity.empty": "Событий пока нет",
+    "activity.customer": "Клиент",
+    "activity.created": "Создан ({status})",
+    "filter.aria": "Фильтр по статусу",
+    "filter.all": "Все",
+    "filter.search_ph": "Поиск: № заказа, имя, e-mail, позиция…",
+    "filter.search_aria": "Поиск по заказам",
+    "filter.from": "С",
+    "filter.to": "По",
+    "filter.min": "От, ₽",
+    "filter.max": "До, ₽",
+    "filter.reset": "Сбросить",
+    "table.aria": "Заказы",
+    "table.section_aria": "Таблица заказов",
+    "table.customer": "Клиент",
+    "table.product": "Позиция",
+    "table.amount": "Сумма",
+    "table.status": "Статус",
+    "table.date": "Дата",
+    "table.actions": "Действия",
+    "table.empty": "Нет заказов по заданным фильтрам",
+    "table.error_title": "Не удалось загрузить заказы",
+    "table.unexpected": "Неожиданная ошибка",
+    "table.status_menu": "Сменить статус",
+    "pager.aria": "Страницы",
+    "pager.info": "{from}–{to} из {total}",
+    "pager.none": "0 заказов",
+    "pager.prev": "Предыдущая страница",
+    "pager.next": "Следующая страница",
+    "confirm.ok": "Подтвердить",
+    "confirm.cancel_title": "Отмена заказа",
+    "confirm.cancel_body": "Отменить заказ #{id}? Это действие необратимо.",
+    "reset.title": "Сброс демо-данных",
+    "reset.body": "Будут восстановлены исходные 60 демо-заказов, ваши изменения пропадут. Продолжить?",
+    "toast.status_changed": "Статус изменён: {status}",
+    "toast.status_denied": "Смена статуса недопустима",
+    "toast.status_failed": "Не удалось сменить статус",
+    "toast.stats_failed": "Не удалось загрузить статистику: {error}",
+    "toast.order_created": "Заказ создан",
+    "toast.create_failed": "Не удалось создать заказ",
+    "toast.reset_done": "Демо-данные восстановлены",
+    "toast.reset_failed": "Не удалось сбросить данные",
+    "drawer.aria": "Карточка заказа",
+    "drawer.title": "Заказ #{id}",
+    "drawer.error": "Не удалось загрузить заказ",
+    "drawer.history": "История",
+    "history.created": "Заказ создан ({status})",
+    "field.status": "Статус",
+    "field.customer": "Клиент",
+    "field.product": "Позиция",
+    "field.amount": "Сумма",
+    "field.created": "Создан",
+    "field.note": "Заметка",
+    "form.title": "Новый заказ",
+    "form.name": "Имя клиента *",
+    "form.name_ph": "например, Анна Смирнова",
+    "form.email": "E-mail (необязательно)",
+    "form.product": "Позиция *",
+    "form.product_ph": "например, Медовик, 1 кг",
+    "form.amount": "Сумма, ₽ *",
+    "form.note": "Заметка (необязательно, до 500 символов)",
+    "form.note_ph": "Внутренняя заметка",
+    "form.create": "Создать заказ",
+    "api.invalid_credentials": "Неверный логин или пароль",
+    "api.too_many_attempts": "Слишком много попыток входа",
+    "api.unauthorized": "Нужно войти",
+    "api.csrf": "Сессия устарела, обновите страницу",
+    "api.validation_failed": "Проверьте введённые данные",
+    "api.invalid_transition": "Такой переход статуса недопустим",
+    "api.not_found": "Не найдено",
+    "api.method_not_allowed": "Метод не поддерживается",
+    "api.forbidden": "Доступ запрещён",
+    "api.conflict": "Конфликт данных",
+    "api.http": "Ошибка сервера (HTTP {status})",
+    "api.field.name_len": "Имя должно быть от 2 до 80 символов",
+    "api.field.email_invalid": "Некорректный e-mail",
+    "api.field.product_len": "Название позиции — от 2 до 80 символов",
+    "api.field.amount_required": "Укажите сумму",
+    "api.field.amount_number": "Сумма должна быть числом",
+    "api.field.amount_decimals": "В сумме не больше двух знаков после запятой",
+    "api.field.amount_positive": "Сумма должна быть больше 0",
+    "api.field.amount_max": "Сумма не должна превышать 1 000 000,00",
+    "api.field.note_len": "Заметка — не более 500 символов",
+    "api.field.status_unknown": "Неизвестный статус",
+    "api.field.sort_unknown": "Неизвестный столбец сортировки",
+    "api.field.invalid_value": "Недопустимое значение: {field}",
+    "api.field.invalid": "Некорректное значение",
+  },
+  en: {
+    "title.admin": "Orders Admin Panel — Sign in",
+    "title.dashboard": "Orders Admin Panel",
+    "lang.switch": "Switch language",
+    "nav.menu": "Menu",
+    "nav.theme": "Toggle theme",
+    "nav.top": "Back to top",
+    "nav.aria": "Navigation",
+    "nav.overview": "Overview",
+    "nav.analytics": "Analytics",
+    "nav.orders": "Orders",
+    "auth.login": "Log in",
+    "auth.logout": "Log out",
+    "common.cancel": "Cancel",
+    "common.close": "Close",
+    "btn.retry": "Retry",
+    "login.heading": "Orders Admin Panel",
+    "login.lead": "A panel for small businesses that take orders in messengers and keep them in spreadsheets: one table with statuses, search, CSV export and sales stats.",
+    "login.demo_user": "Demo username:",
+    "login.demo_pass": "Demo password:",
+    "login.fill_demo": "Fill demo credentials",
+    "login.username": "Username",
+    "login.password": "Password",
+    "login.submit": "Sign in",
+    "login.welcome": "Welcome",
+    "login.failed": "Login failed",
+    "login.network": "Network error. Try again.",
+    "login.too_many": "Too many attempts. Try again in {s}s.",
+    "status.pending": "Pending",
+    "status.paid": "Paid",
+    "status.shipped": "Shipped",
+    "status.completed": "Completed",
+    "status.cancelled": "Cancelled",
+    "action.paid": "Mark paid",
+    "action.shipped": "Mark shipped",
+    "action.completed": "Mark completed",
+    "action.cancelled": "Cancel order",
+    "dash.title": "Dashboard",
+    "sidebar.toggle": "Toggle sidebar",
+    "btn.reset_demo": "Reset data",
+    "btn.reset_demo_title": "Reset demo data",
+    "btn.export": "Export CSV",
+    "btn.new_order": "New order",
+    "kpi.aria": "KPI cards",
+    "kpi.revenue": "Revenue",
+    "kpi.orders": "Orders",
+    "kpi.avg": "Avg order value",
+    "kpi.pending": "Pending",
+    "chart.revenue": "Revenue",
+    "chart.period": "Period",
+    "chart.days_7": "7d",
+    "chart.days_30": "30d",
+    "chart.days_90": "90d",
+    "chart.revenue_label": "Revenue (RUB)",
+    "chart.by_status": "By status",
+    "top.title": "Top products",
+    "top.empty": "No product data",
+    "top.orders.one": "{n} order",
+    "top.orders.other": "{n} orders",
+    "activity.title": "Recent activity",
+    "activity.empty": "No activity yet",
+    "activity.customer": "Customer",
+    "activity.created": "Created ({status})",
+    "filter.aria": "Status filter",
+    "filter.all": "All",
+    "filter.search_ph": "Search #ID, name, email, product…",
+    "filter.search_aria": "Search orders",
+    "filter.from": "From",
+    "filter.to": "To",
+    "filter.min": "Min ₽",
+    "filter.max": "Max ₽",
+    "filter.reset": "Reset",
+    "table.aria": "Orders",
+    "table.section_aria": "Orders table",
+    "table.customer": "Customer",
+    "table.product": "Product",
+    "table.amount": "Amount",
+    "table.status": "Status",
+    "table.date": "Date",
+    "table.actions": "Actions",
+    "table.empty": "No orders match your filters",
+    "table.error_title": "Could not load orders",
+    "table.unexpected": "Unexpected error",
+    "table.status_menu": "Change status",
+    "pager.aria": "Pagination",
+    "pager.info": "{from}–{to} of {total}",
+    "pager.none": "0 orders",
+    "pager.prev": "Previous page",
+    "pager.next": "Next page",
+    "confirm.ok": "Confirm",
+    "confirm.cancel_title": "Cancel order",
+    "confirm.cancel_body": "Cancel #{id}? This cannot be undone.",
+    "reset.title": "Reset demo data",
+    "reset.body": "This will restore the original 60 demo orders. Your experiments will be lost. Continue?",
+    "toast.status_changed": "Status changed to {status}",
+    "toast.status_denied": "Status change not allowed",
+    "toast.status_failed": "Could not change status",
+    "toast.stats_failed": "Failed to load stats: {error}",
+    "toast.order_created": "Order created",
+    "toast.create_failed": "Could not create order",
+    "toast.reset_done": "Demo data restored",
+    "toast.reset_failed": "Could not reset data",
+    "drawer.aria": "Order details",
+    "drawer.title": "Order #{id}",
+    "drawer.error": "Could not load order",
+    "drawer.history": "History",
+    "history.created": "Order created ({status})",
+    "field.status": "Status",
+    "field.customer": "Customer",
+    "field.product": "Product",
+    "field.amount": "Amount",
+    "field.created": "Created",
+    "field.note": "Note",
+    "form.title": "New order",
+    "form.name": "Customer name *",
+    "form.name_ph": "e.g. Jane Doe",
+    "form.email": "Email (optional)",
+    "form.product": "Product *",
+    "form.product_ph": "e.g. Honey cake, 1 kg",
+    "form.amount": "Amount (RUB) *",
+    "form.note": "Note (optional, max 500 chars)",
+    "form.note_ph": "Internal note",
+    "form.create": "Create order",
+    "api.invalid_credentials": "Invalid username or password",
+    "api.too_many_attempts": "Too many login attempts",
+    "api.unauthorized": "Sign-in required",
+    "api.csrf": "Session expired, reload the page",
+    "api.validation_failed": "Please check the entered data",
+    "api.invalid_transition": "This status change is not allowed",
+    "api.not_found": "Not found",
+    "api.method_not_allowed": "Method not allowed",
+    "api.forbidden": "Forbidden",
+    "api.conflict": "Conflict",
+    "api.http": "Server error (HTTP {status})",
+    "api.field.name_len": "Customer name must be 2-80 characters",
+    "api.field.email_invalid": "Email is invalid",
+    "api.field.product_len": "Product must be 2-80 characters",
+    "api.field.amount_required": "Amount is required",
+    "api.field.amount_number": "Amount must be a number",
+    "api.field.amount_decimals": "Amount supports at most 2 decimal places",
+    "api.field.amount_positive": "Amount must be greater than 0",
+    "api.field.amount_max": "Amount must not exceed 1,000,000.00",
+    "api.field.note_len": "Note must not exceed 500 characters",
+    "api.field.status_unknown": "Unknown status",
+    "api.field.sort_unknown": "Unknown sort column",
+    "api.field.invalid_value": "Invalid value for {field}",
+    "api.field.invalid": "Invalid",
+  },
+  };
+
+  const SUPPORTED = ["ru", "en"];
+  const STORAGE_KEY = "lang";
+
+  // Тексты сообщений, которые отдаёт сервер (английские), и ключи их переводов.
+  const API_MESSAGES = {
+    "invalid_credentials": "api.invalid_credentials",
+    "too_many_attempts": "api.too_many_attempts",
+    "unauthorized": "api.unauthorized",
+    "csrf": "api.csrf",
+    "validation_failed": "api.validation_failed",
+    "invalid_transition": "api.invalid_transition",
+    "not_found": "api.not_found",
+    "method_not_allowed": "api.method_not_allowed",
+    "forbidden": "api.forbidden",
+    "conflict": "api.conflict",
+    "Customer name must be 2-80 characters": "api.field.name_len",
+    "Email is invalid": "api.field.email_invalid",
+    "Product must be 2-80 characters": "api.field.product_len",
+    "Amount is required": "api.field.amount_required",
+    "Amount must be a number": "api.field.amount_number",
+    "Amount supports at most 2 decimal places": "api.field.amount_decimals",
+    "Amount must be greater than 0": "api.field.amount_positive",
+    "Amount must not exceed 1,000,000.00": "api.field.amount_max",
+    "Note must not exceed 500 characters": "api.field.note_len",
+    "Unknown status": "api.field.status_unknown",
+    "Unknown sort column": "api.field.sort_unknown",
+  };
+
+  let lang = "ru";
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (SUPPORTED.includes(saved)) lang = saved;
+  } catch (e) { /* хранилище может быть недоступно */ }
+
+  const listeners = [];
+
+  function format(text, params) {
+    return text.replace(/\{(\w+)\}/g, (m, name) => (params && name in params ? String(params[name]) : m));
+  }
+
+  function t(key, params) {
+    const text = DICT[lang][key] ?? DICT.ru[key];
+    return text === undefined ? key : format(text, params);
+  }
+
+  function tn(key, n, params) {
+    const rule = new Intl.PluralRules(lang).select(n);
+    const full = `${key}.${rule}` in DICT[lang] ? `${key}.${rule}` : `${key}.other`;
+    return t(full, { n, ...params });
+  }
+
+  function apiMessage(message) {
+    if (!message) return "";
+    if (API_MESSAGES[message]) return t(API_MESSAGES[message]);
+    let m = /^Invalid value for (\w+)$/.exec(message);
+    if (m) return t("api.field.invalid_value", { field: m[1] });
+    m = /^HTTP (\d+)$/.exec(message);
+    if (m) return t("api.http", { status: m[1] });
+    return message;
+  }
+
+  function apply(root) {
+    const scope = root || document;
+    scope.querySelectorAll("[data-i18n]").forEach((el) => {
+      el.textContent = t(el.dataset.i18n);
+    });
+    scope.querySelectorAll("[data-i18n-attr]").forEach((el) => {
+      el.dataset.i18nAttr.split(";").forEach((pair) => {
+        const [attr, key] = pair.split(":");
+        if (attr && key) el.setAttribute(attr.trim(), t(key.trim()));
+      });
+    });
+    document.documentElement.lang = lang;
+    const titleKey = document.body && document.body.dataset.titleKey;
+    if (titleKey) document.title = t(titleKey);
+    const toggle = document.getElementById("langToggle");
+    if (toggle) toggle.textContent = lang === "ru" ? "EN" : "RU";
+  }
+
+  function setLang(next) {
+    if (!SUPPORTED.includes(next) || next === lang) return;
+    lang = next;
+    try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) { /* ignore */ }
+    apply();
+    listeners.forEach((fn) => fn(lang));
+  }
+
+  window.I18N = {
+    t,
+    tn,
+    apply,
+    apiMessage,
+    setLang,
+    getLang: () => lang,
+    onChange: (fn) => listeners.push(fn),
+  };
+})();

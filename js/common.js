@@ -21,6 +21,11 @@ class ApiError extends Error {
   }
 }
 
+// Путь для перехода после входа: только внутри сайта ("//host" и "/\\host" не пропускаем).
+function safeNextPath(value) {
+  return /^\/(?![/\\])/.test(value || "") ? value : "/dashboard";
+}
+
 function ensureToastContainer() {
   if ($("#toastContainer")) return;
   const wrap = document.createElement("div");
@@ -150,7 +155,7 @@ async function api(path, options = {}) {
     throw new ApiError(422, body.error || "validation_failed", body.errors);
   }
   if (res.status === 429) {
-    const msg = (body && body.error) ? body.error : "Too many requests";
+    const msg = (body && body.error) ? body.error : "too_many_attempts";
     const secs = (body && body.retry_after_seconds) || 60;
     throw new ApiError(429, msg, { retry_after_seconds: secs });
   }
@@ -177,18 +182,19 @@ function injectChrome() {
   header.className = "site-nav";
   header.innerHTML = `
     <div class="nav-inner">
-      <button class="hamburger" id="hamburger" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+      <button class="hamburger" id="hamburger" aria-label="Меню" data-i18n-attr="aria-label:nav.menu"><i class="fa-solid fa-bars"></i></button>
       <a class="logo page-link" href="/dashboard">Orders<span>.</span></a>
       <div class="nav-actions">
-        <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"></button>
-        <button class="btn btn-ghost" id="loginBtn" type="button">Log in</button>
+        <button class="btn btn-ghost" id="langToggle" type="button" aria-label="Сменить язык" title="Сменить язык" data-i18n-attr="aria-label:lang.switch;title:lang.switch">EN</button>
+        <button class="icon-btn" id="themeToggle" aria-label="Сменить тему" data-i18n-attr="aria-label:nav.theme"></button>
+        <button class="btn btn-ghost" id="loginBtn" type="button" data-i18n="auth.login">Войти</button>
       </div>
     </div>`;
   document.body.prepend(header);
 
   const extras = document.createElement("div");
   extras.innerHTML = `
-    <button class="to-top" id="toTop" aria-label="Back to top"><i class="fa-solid fa-arrow-up"></i></button>
+    <button class="to-top" id="toTop" aria-label="Наверх" data-i18n-attr="aria-label:nav.top"><i class="fa-solid fa-arrow-up"></i></button>
 `;
   document.body.append(extras);
 }
@@ -199,7 +205,7 @@ async function bootstrapAuthUI() {
   try {
     const me = await api("/api/me");
     if (me && me.username) {
-      btn.textContent = "Log out";
+      btn.dataset.i18n = "auth.logout";
       btn.addEventListener("click", async () => {
         try {
           await api("/api/logout", { method: "POST" });
@@ -208,13 +214,14 @@ async function bootstrapAuthUI() {
         window.location.href = "/";
       });
     } else {
-      btn.textContent = "Log in";
+      btn.dataset.i18n = "auth.login";
       btn.addEventListener("click", () => { window.location.href = "/admin"; });
     }
   } catch {
-    btn.textContent = "Log in";
+    btn.dataset.i18n = "auth.login";
     btn.addEventListener("click", () => { window.location.href = "/admin"; });
   }
+  I18N.apply(btn.parentNode);
 }
 
 function clearFieldErrors(form) {
@@ -224,7 +231,10 @@ function clearFieldErrors(form) {
 function renderFieldErrors(form, fields) {
   Object.entries(fields || {}).forEach(([k, v]) => {
     const el = form.querySelector(`[data-error-for="${k}"]`);
-    if (el) el.textContent = typeof v === "string" ? v : (Array.isArray(v) ? v[0] : "Invalid");
+    if (el) {
+      const raw = typeof v === "string" ? v : (Array.isArray(v) ? v[0] : "");
+      el.textContent = raw ? I18N.apiMessage(raw) : I18N.t("api.field.invalid");
+    }
     const input = form.querySelector(`[name="${k}"]`);
     if (input) input.setAttribute("aria-invalid", "true");
   });
@@ -232,6 +242,7 @@ function renderFieldErrors(form, fields) {
 
 document.addEventListener("DOMContentLoaded", () => {
   injectChrome();
+  I18N.apply();
   initTheme();
   initNav();
   initReveal();
@@ -239,6 +250,10 @@ document.addEventListener("DOMContentLoaded", () => {
   initBackToTop();
   document.body.classList.add("page-fade");
   document.body.style.opacity = "1";
+
+  $("#langToggle")?.addEventListener("click", () => {
+    I18N.setLang(I18N.getLang() === "ru" ? "en" : "ru");
+  });
 
   $("#themeToggle")?.addEventListener("click", () => {
     setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
@@ -270,6 +285,7 @@ window.OrdersApp = {
   ApiError,
   clearFieldErrors,
   renderFieldErrors,
+  safeNextPath,
 };
 window.$ = $;
 window.$$ = $$;

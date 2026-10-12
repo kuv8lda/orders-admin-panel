@@ -1,59 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Orders Admin Panel</title>
+  <title>Панель заказов</title>
   <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
   <link rel="stylesheet" href="css/vendor/fa-icons.css">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/vendor/chart.umd.min.js"></script>
 </head>
-<body data-page="dashboard">
+<body data-page="dashboard" data-title-key="title.dashboard">
   <div class="dash-shell" id="dashShell">
-    <aside class="sidebar" aria-label="Navigation">
-      <a class="active" href="#overview" title="Overview" data-nav="overview"><i class="fa-solid fa-gauge-high"></i></a>
-      <a href="#analytics" title="Analytics" data-nav="analytics"><i class="fa-solid fa-chart-line"></i></a>
-      <a href="#orders" title="Orders" data-nav="orders"><i class="fa-solid fa-bag-shopping"></i></a>
-      <button class="side-btn" type="button" id="sidebarLogout" title="Log out"><i class="fa-solid fa-right-from-bracket"></i></button>
+    <aside class="sidebar" aria-label="Навигация" data-i18n-attr="aria-label:nav.aria">
+      <a class="active" href="#overview" title="Обзор" data-i18n-attr="title:nav.overview" data-nav="overview"><i class="fa-solid fa-gauge-high"></i></a>
+      <a href="#analytics" title="Аналитика" data-i18n-attr="title:nav.analytics" data-nav="analytics"><i class="fa-solid fa-chart-line"></i></a>
+      <a href="#orders" title="Заказы" data-i18n-attr="title:nav.orders" data-nav="orders"><i class="fa-solid fa-bag-shopping"></i></a>
+      <button class="side-btn" type="button" id="sidebarLogout" title="Выйти" data-i18n-attr="title:auth.logout"><i class="fa-solid fa-right-from-bracket"></i></button>
     </aside>
 
     <main class="dash-main">
       <div class="topbar">
-        <button class="icon-btn" id="collapseBtn" aria-label="Toggle sidebar"><i class="fa-solid fa-bars"></i></button>
-        <h2>Dashboard</h2>
+        <button class="icon-btn" id="collapseBtn" aria-label="Показать или скрыть меню" data-i18n-attr="aria-label:sidebar.toggle"><i class="fa-solid fa-bars"></i></button>
+        <h2 data-i18n="dash.title">Обзор</h2>
         <div class="clock" id="clock">00:00:00</div>
         {% if demo_mode %}
-        <button class="btn btn-ghost" id="resetDemoBtn" type="button" title="Reset demo data">
-          <i class="fa-solid fa-rotate"></i> Reset data
+        <button class="btn btn-ghost" id="resetDemoBtn" type="button" title="Сбросить демо-данные" data-i18n-attr="title:btn.reset_demo_title">
+          <i class="fa-solid fa-rotate"></i> <span data-i18n="btn.reset_demo">Сбросить данные</span>
         </button>
         {% endif %}
         <button class="btn btn-ghost" id="exportBtn" type="button">
-          <i class="fa-solid fa-file-csv"></i> Export CSV
+          <i class="fa-solid fa-file-csv"></i> <span data-i18n="btn.export">Выгрузить CSV</span>
         </button>
         <button class="btn btn-primary" id="newOrderBtn" type="button">
-          <i class="fa-solid fa-plus"></i> New order
+          <i class="fa-solid fa-plus"></i> <span data-i18n="btn.new_order">Новый заказ</span>
         </button>
       </div>
 
-      <section id="overview" class="stats" aria-label="KPI cards">
+      <section id="overview" class="stats" aria-label="Показатели" data-i18n-attr="aria-label:kpi.aria">
         <article class="card stat" data-kpi="revenue">
-          <span class="lead">Revenue</span>
+          <span class="lead" data-i18n="kpi.revenue">Выручка</span>
           <b><span class="skeleton" style="width:60%"></span></b>
           <div class="row"><span class="kpi-delta-flat"><i class="fa-solid fa-minus"></i> —</span></div>
         </article>
         <article class="card stat" data-kpi="orders">
-          <span class="lead">Orders</span>
+          <span class="lead" data-i18n="kpi.orders">Заказы</span>
           <b><span class="skeleton" style="width:60%"></span></b>
           <div class="row"><span class="kpi-delta-flat"><i class="fa-solid fa-minus"></i> —</span></div>
         </article>
         <article class="card stat" data-kpi="avg">
-          <span class="lead">Avg order value</span>
+          <span class="lead" data-i18n="kpi.avg">Средний чек</span>
           <b><span class="skeleton" style="width:60%"></span></b>
           <div class="row"><span class="kpi-delta-flat"><i class="fa-solid fa-minus"></i> —</span></div>
         </article>
         <article class="card stat" data-kpi="pending">
-          <span class="lead">Pending</span>
+          <span class="lead" data-i18n="kpi.pending">Ожидают оплаты</span>
           <b><span class="skeleton" style="width:60%"></span></b>
           <div class="row"><span class="kpi-delta-flat"><i class="fa-solid fa-minus"></i> —</span></div>
         </article>
@@ -62,17 +62,17 @@
       <section id="analytics" class="dash-grid" style="margin-bottom:14px">
         <article class="card chart-card" style="padding:16px">
           <div class="card-header">
-            <h3>Revenue</h3>
-            <div class="period-toggle" role="tablist" aria-label="Period">
-              <button type="button" data-days="7">7d</button>
-              <button type="button" data-days="30" class="active">30d</button>
-              <button type="button" data-days="90">90d</button>
+            <h3 data-i18n="chart.revenue">Выручка</h3>
+            <div class="period-toggle" role="tablist" aria-label="Период" data-i18n-attr="aria-label:chart.period">
+              <button type="button" data-days="7" data-i18n="chart.days_7">7 дн.</button>
+              <button type="button" data-days="30" class="active" data-i18n="chart.days_30">30 дн.</button>
+              <button type="button" data-days="90" data-i18n="chart.days_90">90 дн.</button>
             </div>
           </div>
           <canvas id="revenueChart" height="120"></canvas>
         </article>
         <article class="card" style="padding:16px">
-          <div class="card-header"><h3>By status</h3></div>
+          <div class="card-header"><h3 data-i18n="chart.by_status">По статусам</h3></div>
           <div class="donut-wrap">
             <div class="donut-canvas"><canvas id="statusChart"></canvas></div>
             <div class="legend" id="statusLegend"></div>
@@ -82,7 +82,7 @@
 
       <section class="dash-grid" style="margin-bottom:14px">
         <article class="card" style="padding:16px">
-          <div class="card-header"><h3>Top products</h3></div>
+          <div class="card-header"><h3 data-i18n="top.title">Популярные позиции</h3></div>
           <div class="top-products" id="topProducts">
             <div class="skeleton-row"><div class="skeleton"></div></div>
             <div class="skeleton-row"><div class="skeleton"></div></div>
@@ -91,7 +91,7 @@
           </div>
         </article>
         <aside class="card rightbar-card" style="padding:16px;border-left:1px solid var(--border)">
-          <div class="card-header"><h3>Recent activity</h3></div>
+          <div class="card-header"><h3 data-i18n="activity.title">Последние события</h3></div>
           <div class="activity-list" id="activityList">
             <div class="skeleton-row"><div class="skeleton"></div></div>
             <div class="skeleton-row"><div class="skeleton"></div></div>
@@ -100,55 +100,55 @@
         </aside>
       </section>
 
-      <section id="orders" aria-label="Orders table">
+      <section id="orders" aria-label="Таблица заказов" data-i18n-attr="aria-label:table.section_aria">
         <div class="filter-bar">
-          <div class="chips" id="statusChips" role="group" aria-label="Status filter">
-            <button class="chip active" data-status="">All <span class="count" data-count-all>-</span></button>
-            <button class="chip" data-status="pending">Pending <span class="count" data-count-pending>-</span></button>
-            <button class="chip" data-status="paid">Paid <span class="count" data-count-paid>-</span></button>
-            <button class="chip" data-status="shipped">Shipped <span class="count" data-count-shipped>-</span></button>
-            <button class="chip" data-status="completed">Completed <span class="count" data-count-completed>-</span></button>
-            <button class="chip" data-status="cancelled">Cancelled <span class="count" data-count-cancelled>-</span></button>
+          <div class="chips" id="statusChips" role="group" aria-label="Фильтр по статусу" data-i18n-attr="aria-label:filter.aria">
+            <button class="chip active" data-status=""><span data-i18n="filter.all">Все</span> <span class="count" data-count-all>-</span></button>
+            <button class="chip" data-status="pending"><span data-i18n="status.pending">Ожидает оплаты</span> <span class="count" data-count-pending>-</span></button>
+            <button class="chip" data-status="paid"><span data-i18n="status.paid">Оплачен</span> <span class="count" data-count-paid>-</span></button>
+            <button class="chip" data-status="shipped"><span data-i18n="status.shipped">Передан в доставку</span> <span class="count" data-count-shipped>-</span></button>
+            <button class="chip" data-status="completed"><span data-i18n="status.completed">Выполнен</span> <span class="count" data-count-completed>-</span></button>
+            <button class="chip" data-status="cancelled"><span data-i18n="status.cancelled">Отменён</span> <span class="count" data-count-cancelled>-</span></button>
           </div>
           <div class="filter-actions">
             <div class="search-wrap">
               <i class="fa-solid fa-magnifying-glass"></i>
-              <input id="searchInput" type="search" placeholder="Search #ID, name, email, product…" aria-label="Search orders">
+              <input id="searchInput" type="search" placeholder="Поиск: № заказа, имя, e-mail, позиция…" aria-label="Поиск по заказам" data-i18n-attr="placeholder:filter.search_ph;aria-label:filter.search_aria">
             </div>
-            <div class="range-grid" style="grid-template-columns:repeat(4,1fr);min-width:480px">
+            <div class="range-grid">
               <div class="field">
-                <label for="dateFrom">From</label>
+                <label for="dateFrom" data-i18n="filter.from">С</label>
                 <input type="date" id="dateFrom">
               </div>
               <div class="field">
-                <label for="dateTo">To</label>
+                <label for="dateTo" data-i18n="filter.to">По</label>
                 <input type="date" id="dateTo">
               </div>
               <div class="field">
-                <label for="minAmount">Min ₽</label>
+                <label for="minAmount" data-i18n="filter.min">От, ₽</label>
                 <input type="number" id="minAmount" step="0.01" min="0" placeholder="0.00">
               </div>
               <div class="field">
-                <label for="maxAmount">Max ₽</label>
+                <label for="maxAmount" data-i18n="filter.max">До, ₽</label>
                 <input type="number" id="maxAmount" step="0.01" min="0" placeholder="100000">
               </div>
             </div>
-            <button type="button" class="btn btn-ghost" id="resetFiltersBtn"><i class="fa-solid fa-xmark"></i> Reset</button>
+            <button type="button" class="btn btn-ghost" id="resetFiltersBtn"><i class="fa-solid fa-xmark"></i> <span data-i18n="filter.reset">Сбросить</span></button>
           </div>
         </div>
 
         <article class="card" style="padding:16px">
           <div class="table-wrap" id="tableWrap">
-            <table id="ordersTable" aria-label="Orders">
+            <table id="ordersTable" aria-label="Заказы" data-i18n-attr="aria-label:table.aria">
               <thead>
                 <tr>
                   <th data-sort="id">#<span class="sort-indicator"></span></th>
-                  <th data-sort="customer_name">Customer<span class="sort-indicator"></span></th>
-                  <th data-sort="product">Product<span class="sort-indicator"></span></th>
-                  <th data-sort="amount_cents">Amount<span class="sort-indicator"></span></th>
-                  <th data-sort="status">Status<span class="sort-indicator"></span></th>
-                  <th data-sort="created_at" class="active-sort">Date<span class="sort-indicator">▼</span></th>
-                  <th aria-label="Actions"></th>
+                  <th data-sort="customer_name"><span data-i18n="table.customer">Клиент</span><span class="sort-indicator"></span></th>
+                  <th data-sort="product"><span data-i18n="table.product">Позиция</span><span class="sort-indicator"></span></th>
+                  <th data-sort="amount_cents"><span data-i18n="table.amount">Сумма</span><span class="sort-indicator"></span></th>
+                  <th data-sort="status"><span data-i18n="table.status">Статус</span><span class="sort-indicator"></span></th>
+                  <th data-sort="created_at" class="active-sort"><span data-i18n="table.date">Дата</span><span class="sort-indicator">▼</span></th>
+                  <th aria-label="Действия" data-i18n-attr="aria-label:table.actions"></th>
                 </tr>
               </thead>
               <tbody id="ordersBody">
@@ -157,7 +157,7 @@
             </table>
             <div id="tableState" class="hidden"></div>
           </div>
-          <div class="pagination" id="pagination" aria-label="Pagination"></div>
+          <div class="pagination" id="pagination" aria-label="Страницы" data-i18n-attr="aria-label:pager.aria"></div>
         </article>
       </section>
     </main>
@@ -166,49 +166,43 @@
   </div>
 
   <datalist id="productsDatalist">
-    <option value="Landing kit"></option>
-    <option value="Telegram bot"></option>
-    <option value="Dashboard"></option>
-    <option value="Scraper"></option>
-    <option value="Admin panel"></option>
-    <option value="Web app"></option>
-    <option value="Storefront"></option>
-    <option value="Analytics"></option>
-    <option value="Bot upgrade"></option>
+    {% for name in product_names %}
+    <option value="{{ name }}"></option>
+    {% endfor %}
   </datalist>
 
   <div class="modal-backdrop" id="newOrderModal" aria-hidden="true">
     <div class="modal">
-      <h3>New order</h3>
+      <h3 data-i18n="form.title">Новый заказ</h3>
       <form class="form" id="newOrderForm" novalidate>
         <div class="field">
-          <label for="noName">Customer name *</label>
-          <input id="noName" name="customer_name" placeholder="e.g. Jane Doe" required>
+          <label for="noName" data-i18n="form.name">Имя клиента *</label>
+          <input id="noName" name="customer_name" placeholder="например, Анна Смирнова" data-i18n-attr="placeholder:form.name_ph" required>
           <div class="field-error" data-error-for="customer_name"></div>
         </div>
         <div class="field">
-          <label for="noEmail">Email (optional)</label>
-          <input type="email" id="noEmail" name="customer_email" placeholder="jane@example.com">
+          <label for="noEmail" data-i18n="form.email">E-mail (необязательно)</label>
+          <input type="email" id="noEmail" name="customer_email" placeholder="name@example.com">
           <div class="field-error" data-error-for="customer_email"></div>
         </div>
         <div class="field">
-          <label for="noProduct">Product *</label>
-          <input id="noProduct" name="product" list="productsDatalist" placeholder="e.g. Dashboard" required>
+          <label for="noProduct" data-i18n="form.product">Позиция *</label>
+          <input id="noProduct" name="product" list="productsDatalist" placeholder="например, Медовик, 1 кг" data-i18n-attr="placeholder:form.product_ph" required>
           <div class="field-error" data-error-for="product"></div>
         </div>
         <div class="field">
-          <label for="noAmount">Amount (RUB) *</label>
+          <label for="noAmount" data-i18n="form.amount">Сумма, ₽ *</label>
           <input id="noAmount" name="amount" type="number" step="0.01" min="0" placeholder="2400.00" required>
           <div class="field-error" data-error-for="amount"></div>
         </div>
         <div class="field">
-          <label for="noNote">Note (optional, max 500 chars)</label>
-          <textarea id="noNote" name="note" rows="2" maxlength="500" placeholder="Internal note"></textarea>
+          <label for="noNote" data-i18n="form.note">Заметка (необязательно, до 500 символов)</label>
+          <textarea id="noNote" name="note" rows="2" maxlength="500" placeholder="Внутренняя заметка" data-i18n-attr="placeholder:form.note_ph"></textarea>
           <div class="field-error" data-error-for="note"></div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" data-close="newOrderModal">Cancel</button>
-          <button class="btn btn-primary" type="submit">Create order</button>
+          <button type="button" class="btn btn-ghost" data-close="newOrderModal" data-i18n="common.cancel">Отмена</button>
+          <button class="btn btn-primary" type="submit" data-i18n="form.create">Создать заказ</button>
         </div>
       </form>
     </div>
@@ -216,20 +210,20 @@
 
   <div class="modal-backdrop" id="confirmModal" aria-hidden="true">
     <div class="modal">
-      <h3 id="confirmTitle">Confirm</h3>
-      <p class="lead" id="confirmBody">Are you sure?</p>
+      <h3 id="confirmTitle"></h3>
+      <p class="lead" id="confirmBody"></p>
       <div class="modal-actions">
-        <button type="button" class="btn btn-ghost" data-close="confirmModal">Cancel</button>
-        <button class="btn btn-primary" id="confirmOk" type="button">Confirm</button>
+        <button type="button" class="btn btn-ghost" data-close="confirmModal" data-i18n="common.cancel">Отмена</button>
+        <button class="btn btn-primary" id="confirmOk" type="button" data-i18n="confirm.ok">Подтвердить</button>
       </div>
     </div>
   </div>
 
-  <div class="drawer" id="orderDrawer" role="dialog" aria-modal="true" aria-label="Order details">
+  <div class="drawer" id="orderDrawer" role="dialog" aria-modal="true" aria-label="Карточка заказа" data-i18n-attr="aria-label:drawer.aria">
     <div class="drawer-header">
-      <h3 id="drawerTitle">Order #1001</h3>
+      <h3 id="drawerTitle"></h3>
       <div class="spacer"></div>
-      <button class="icon-btn" type="button" id="drawerClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      <button class="icon-btn" type="button" id="drawerClose" aria-label="Закрыть" data-i18n-attr="aria-label:common.close"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div id="drawerBody">
       <div class="skeleton" style="height:200px"></div>
@@ -237,6 +231,7 @@
   </div>
   <div class="modal-backdrop" id="drawerBackdrop" style="z-index:54;display:none"></div>
 
+  <script src="js/i18n.js"></script>
   <script src="js/common.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
