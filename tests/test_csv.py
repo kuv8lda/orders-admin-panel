@@ -63,6 +63,7 @@ def test_csv_header_row_matches_spec(authed, app):
     header = next(reader)
     assert header == [
         "ID", "Customer", "Email", "Product", "Amount", "Status", "Created", "Updated",
+        "source", "customer_phone", "delivery_date", "items",
     ]
 
 def test_csv_row_count_matches_filtered_api_total(authed, app):

@@ -68,6 +68,17 @@ function relativeTime(iso) {
   return relFmt().format(Math.round(absMo / 12), "year");
 }
 
+function sourceBadge(src) {
+  if (src !== "telegram" && src !== "panel") return null;
+  return el("span", { class: "badge", style: "margin-left:6px;font-size:0.68rem" }, [t(`source.${src}`)]);
+}
+
+function tgLink(o) {
+  const u = o.telegram_url;
+  if (!u || !u.startsWith("https://t.me/")) return null;
+  return el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, ["@" + (o.telegram_username || "")]);
+}
+
 function badge(status) {
   const s = status || "pending";
   return el("span", { class: `badge ${s}` }, [STATUS_LABEL[s] || s]);
@@ -95,6 +106,7 @@ function debounce(fn, wait) {
 
 const DEFAULT_STATE = {
   status: "",
+  source: "",
   q: "",
   date_from: "",
   date_to: "",
@@ -146,6 +158,7 @@ function syncUIFromState() {
   $$("#statusChips .chip").forEach((c) => {
     c.classList.toggle("active", (c.dataset.status || "") === state.status);
   });
+  $("#sourceFilter").value = state.source || "";
   $("#searchInput").value = state.q || "";
   $("#dateFrom").value = state.date_from || "";
   $("#dateTo").value = state.date_to || "";
@@ -399,7 +412,7 @@ async function refreshTable(refreshCountsToo) {
   tableAbort = ab;
   const seq = ++requestSeq;
   const params = new URLSearchParams();
-  ["status", "q", "date_from", "date_to", "min_amount", "max_amount", "sort", "dir", "page", "per_page"]
+  ["status", "source", "q", "date_from", "date_to", "min_amount", "max_amount", "sort", "dir", "page", "per_page"]
     .forEach((k) => {
       if (state[k] !== "" && state[k] != null) params.set(k, state[k]);
     });
@@ -481,7 +494,7 @@ function renderTable(data) {
     idCell.textContent = `#${o.id + 1000}`;
 
     const custCell = document.createElement("td");
-    custCell.appendChild(el("div", { style: "font-weight:600" }, [o.customer_name || "—"]));
+    custCell.appendChild(el("div", { style: "font-weight:600" }, [o.customer_name || "—", sourceBadge(o.source)]));
     if (o.customer_email) {
       const em = document.createElement("small");
       em.className = "lead";
@@ -705,13 +718,30 @@ function renderOrderDrawer(order) {
   ]));
   grid.appendChild(el("div", {}, [
     el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.customer")]),
-    el("div", { style: "font-weight:700" }, [order.customer_name || "—"]),
-    order.customer_email ? el("small", { class: "lead" }, [order.customer_email]) : null,
+    el("div", { style: "font-weight:700" }, [order.customer_name || "—", sourceBadge(order.source)]),
+    order.customer_email ? el("small", { class: "lead", style: "display:block" }, [order.customer_email]) : null,
+    order.customer_phone ? el("small", { class: "lead", style: "display:block" }, [order.customer_phone]) : null,
+    tgLink(order) ? el("small", { style: "display:block" }, [tgLink(order)]) : null,
   ]));
   grid.appendChild(el("div", {}, [
     el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.product")]),
     el("div", { style: "font-weight:600" }, [order.product || "—"]),
   ]));
+  if ((order.items || []).length) {
+    grid.appendChild(el("div", {}, [
+      el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.items")]),
+      ...order.items.map((i) => el("div", { style: "display:flex;justify-content:space-between;gap:10px" }, [
+        el("span", {}, [`${i.product} × ${i.quantity}`]),
+        el("span", { style: "font-variant-numeric:tabular-nums" }, [formatMoney(i.unit_price_cents * i.quantity)]),
+      ])),
+    ]));
+  }
+  if (order.delivery_date) {
+    grid.appendChild(el("div", {}, [
+      el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.delivery")]),
+      el("div", { style: "font-weight:600" }, [order.delivery_date]),
+    ]));
+  }
   grid.appendChild(el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:14px" }, [
     el("div", {}, [
       el("div", { class: "lead", style: "font-size:0.75rem;margin-bottom:4px" }, [t("field.amount")]),
@@ -805,7 +835,7 @@ async function submitNewOrder(e) {
 
 function exportCsv() {
   const params = new URLSearchParams();
-  ["status", "q", "date_from", "date_to", "min_amount", "max_amount", "sort", "dir"].forEach((k) => {
+  ["status", "source", "q", "date_from", "date_to", "min_amount", "max_amount", "sort", "dir"].forEach((k) => {
     if (state[k] !== "" && state[k] != null) params.set(k, state[k]);
   });
   const token = OrdersApp.getCsrfToken();
@@ -894,6 +924,13 @@ function initDashboardUI() {
     });
   });
 
+  $("#sourceFilter").addEventListener("change", (e) => {
+    state.source = e.target.value;
+    state.page = 1;
+    pushStateToUrl();
+    refreshTable(false);
+  });
+
   const debouncedSearch = debounce(() => {
     state.q = $("#searchInput").value.trim();
     state.page = 1;
@@ -913,7 +950,7 @@ function initDashboardUI() {
   });
 
   $("#resetFiltersBtn").addEventListener("click", () => {
-    ["status", "q", "date_from", "date_to", "min_amount", "max_amount"].forEach((k) => (state[k] = DEFAULT_STATE[k]));
+    ["status", "source", "q", "date_from", "date_to", "min_amount", "max_amount"].forEach((k) => (state[k] = DEFAULT_STATE[k]));
     state.sort = DEFAULT_STATE.sort;
     state.dir = DEFAULT_STATE.dir;
     state.page = 1;

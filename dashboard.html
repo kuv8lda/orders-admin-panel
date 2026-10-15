@@ -115,6 +115,11 @@
               <i class="fa-solid fa-magnifying-glass"></i>
               <input id="searchInput" type="search" placeholder="Поиск: № заказа, имя, e-mail, позиция…" aria-label="Поиск по заказам" data-i18n-attr="placeholder:filter.search_ph;aria-label:filter.search_aria">
             </div>
+            <select id="sourceFilter" aria-label="Источник" data-i18n-attr="aria-label:filter.source">
+              <option value="" data-i18n="filter.source_all">Все источники</option>
+              <option value="telegram" data-i18n="source.telegram">Telegram</option>
+              <option value="panel" data-i18n="source.panel">Панель</option>
+            </select>
             <div class="range-grid">
               <div class="field">
                 <label for="dateFrom" data-i18n="filter.from">С</label>

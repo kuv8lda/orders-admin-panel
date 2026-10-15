@@ -85,7 +85,7 @@ API_ALLOWLIST_NO_AUTH: set[tuple[str, str]] = {
 }
 
 INTEGRATIONS_PREFIX = "/api/integrations"
-BOT_TOKEN_MIN_LEN = 32
+PANEL_API_KEY_MIN_LEN = 32
 
 CSRF_EXEMPT: set[tuple[str, str]] = {
     ("POST", "/api/login"),
@@ -127,6 +127,10 @@ CONTENT_SECURITY_POLICY = "; ".join(
 STATIC_FILES_DENYLIST = frozenset(
     (".py", ".db", ".txt", ".env", ".md", ".xz")
 )
+
+ORDER_SOURCES: frozenset[str] = frozenset(("panel", "telegram"))
+TG_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{5,32}$")
+PHONE_RE = re.compile(r"\+7(\d{3})(\d{3})(\d{2})(\d{2})", re.ASCII)
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
 CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\n", "\r")
@@ -214,12 +218,12 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     if "TRUST_PROXY" not in app.config:
         app.config["TRUST_PROXY"] = _env_flag("TRUST_PROXY")
 
-    if "BOT_API_TOKEN" not in app.config:
-        app.config["BOT_API_TOKEN"] = os.environ.get("BOT_API_TOKEN", "").strip() or None
-    bot_token = app.config["BOT_API_TOKEN"]
-    if bot_token and len(bot_token) < BOT_TOKEN_MIN_LEN:
-        raise RuntimeError(f"BOT_API_TOKEN: минимум {BOT_TOKEN_MIN_LEN} символов.")
-    app.config["BOT_API_TOKEN"] = bot_token or None
+    if "PANEL_API_KEY" not in app.config:
+        app.config["PANEL_API_KEY"] = os.environ.get("PANEL_API_KEY", "").strip() or None
+    api_key = app.config["PANEL_API_KEY"]
+    if api_key and len(api_key) < PANEL_API_KEY_MIN_LEN:
+        raise RuntimeError(f"PANEL_API_KEY: минимум {PANEL_API_KEY_MIN_LEN} символов.")
+    app.config["PANEL_API_KEY"] = api_key or None
 
     username_env = os.environ.get("ADMIN_USERNAME") or None
     password_env = os.environ.get("ADMIN_PASSWORD") or None
@@ -251,7 +255,7 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
         "app ready: demo_mode=%s trust_proxy=%s integrations=%s",
         app.config["DEMO_MODE"],
         app.config["TRUST_PROXY"],
-        "on" if app.config.get("BOT_API_TOKEN") else "off",
+        "on" if app.config.get("PANEL_API_KEY") else "off",
     )
     return app
 
@@ -312,7 +316,7 @@ def _integration_guard() -> Response | None:
     Валидный токен заменяет сессию и CSRF только для этого префикса.
     Сессия администратора здесь не засчитывается.
     """
-    token = current_app.config.get("BOT_API_TOKEN")
+    token = current_app.config.get("PANEL_API_KEY")
     if not token:
         return jsonify({"error": "not_found"}), 404
     header = request.headers.get("Authorization") or ""
@@ -459,6 +463,48 @@ def _csv_safe(value: object) -> str:
     return s
 
 
+def _csv_phone(value: object) -> str:
+    """Телефон +7XXXXXXXXXX -> «+7 (XXX) XXX XX-XX» для таблицы.
+
+    Строка состоит только из цифр, пробелов, скобок и тире, формулу в неё не
+    вставить. Но она начинается с «+», и Excel принял бы её за формулу, поэтому
+    в начало ставится табуляция: ячейка читается как текст. Всё, что не
+    подходит под формат, идёт через обычное экранирование.
+    """
+    s = "" if value is None else str(value)
+    m = PHONE_RE.fullmatch(s)
+    if not m:
+        return _csv_safe(s)
+    a, b, c, d = m.groups()
+    return f"\t+7 ({a}) {b} {c}-{d}"
+
+
+def _tg_url(username: Any) -> str | None:
+    """Ссылка на @username только для валидного имени (без javascript:/HTML)."""
+    if isinstance(username, str) and TG_USERNAME_RE.match(username):
+        return f"https://t.me/{username}"
+    return None
+
+
+def _items_by_order(conn: Any, ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    out: dict[int, list[dict[str, Any]]] = {i: [] for i in ids}
+    for k in range(0, len(ids), 500):
+        chunk = ids[k:k + 500]
+        marks = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            "SELECT order_id, product, unit_price_cents, quantity FROM order_items"
+            f" WHERE order_id IN ({marks}) ORDER BY id",
+            chunk,
+        ).fetchall()
+        for r in rows:
+            out[r["order_id"]].append({
+                "product": r["product"],
+                "unit_price_cents": r["unit_price_cents"],
+                "quantity": r["quantity"],
+            })
+    return out
+
+
 def _parse_iso_date(s: str) -> date | None:
     try:
         return date.fromisoformat(s[:10])
@@ -589,6 +635,12 @@ def _register_routes(app: Flask) -> None:
                 raise ValueError("status")
             clauses.append("status = ?")
             values.append(status)
+        source = (request.args.get("source") or "").strip()
+        if source:
+            if source not in ORDER_SOURCES:
+                raise ValueError("source")
+            clauses.append("source = ?")
+            values.append(source)
         q = (request.args.get("q") or "").strip()
         if q:
             like = f"%{_escape_like(q)}%"
@@ -678,10 +730,12 @@ def _register_routes(app: Flask) -> None:
             f" ORDER BY {sort} {direction}"
         )
         if paginate:
-            sql += f" LIMIT ? OFFSET ?"
+            sql += " LIMIT ? OFFSET ?"
             values = list(values) + [per_page, (page - 1) * per_page]
         rows = conn.execute(sql, values).fetchall()
         items = [dict(r) for r in rows]
+        for it in items:
+            it["telegram_url"] = _tg_url(it.get("telegram_username"))
         return items, total, page, per_page, pages
 
     @get("/api/orders")
@@ -754,6 +808,8 @@ def _register_routes(app: Flask) -> None:
         ).fetchall()
         payload = dict(row)
         payload["events"] = [dict(e) for e in events]
+        payload["items"] = _items_by_order(conn, [order_id])[order_id]
+        payload["telegram_url"] = _tg_url(payload.get("telegram_username"))
         return jsonify(payload)
 
     @patch("/api/orders/<int:order_id>/status")
@@ -794,7 +850,9 @@ def _register_routes(app: Flask) -> None:
         writer = csv.writer(buf, lineterminator="\n", quoting=csv.QUOTE_MINIMAL)
         writer.writerow([
             "ID", "Customer", "Email", "Product", "Amount", "Status", "Created", "Updated",
+            "source", "customer_phone", "delivery_date", "items",
         ])
+        items_map = _items_by_order(get_db(), [r["id"] for r in items])
         for row in items:
             cents = row["amount_cents"] or 0
             amount_str = f"{(Decimal(cents) / Decimal('100')).quantize(Decimal('0.01'))}"
@@ -807,6 +865,12 @@ def _register_routes(app: Flask) -> None:
                 _csv_safe(row["status"]),
                 _csv_safe(row["created_at"]),
                 _csv_safe(row["updated_at"]),
+                _csv_safe(row["source"]),
+                _csv_phone(row["customer_phone"]),
+                _csv_safe(row["delivery_date"] or ""),
+                _csv_safe("; ".join(
+                    f"{i['product']} x{i['quantity']}" for i in items_map[row["id"]]
+                )),
             ])
         csv_body = buf.getvalue()
         today = utcnow().date().isoformat()

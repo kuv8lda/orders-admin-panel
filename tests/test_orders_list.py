@@ -82,7 +82,6 @@ def test_filter_search_q_by_hash_id(authed, app):
         assert any(i["id"] == first_id for i in body["items"]), (query, body)
 
 def test_filter_date_from_to_range(authed, app):
-    import db as db_mod
     from db import utcnow
     from datetime import timedelta
 

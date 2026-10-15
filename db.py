@@ -211,8 +211,6 @@ def seed_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None:
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     total_orders = 60
 
-    statuses_order = ["pending", "paid", "shipped", "completed", "cancelled"]
-
     for idx in range(total_orders):
         days_ago = total_orders - 1 - idx  # 59..0 -> spread evenly
         day = today - timedelta(days=days_ago)

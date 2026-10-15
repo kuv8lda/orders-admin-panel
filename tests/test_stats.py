@@ -1,8 +1,6 @@
 """Statistics computation against the hand-verified ``seed_small`` fixture."""
 from __future__ import annotations
 
-from datetime import timedelta
-
 
 def test_stats_kpi_revenue_matches_hand_computation(authed, seed_small):
     client, csrf = authed

@@ -18,7 +18,7 @@ def _make(token):
     return create_app({
         "TESTING": True, "DATABASE_PATH": ":memory:", "SECRET_KEY": "k",
         "ADMIN_USERNAME": "admin", "ADMIN_PASSWORD_HASH": TEST_PASSWORD_HASH,
-        "DEMO_MODE": True, "BOT_API_TOKEN": token,
+        "DEMO_MODE": True, "PANEL_API_KEY": token,
     })
 
 

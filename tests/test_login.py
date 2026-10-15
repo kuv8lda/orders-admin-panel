@@ -38,7 +38,6 @@ def test_login_rate_limit_six_wrong_attempts_returns_429_then_429(client):
         )
         statuses.append(resp.status_code)
     assert 429 in statuses, f"expected at least one 429 among {statuses}"
-    last = statuses[-1]
     first_rate_limited = statuses.index(429)
     assert first_rate_limited >= 5, f"rate limit kicked in too early: idx {first_rate_limited}"
     last_resp = client.post(
