@@ -1,0 +1,2243 @@
+{
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/db.py": {
+    "hash": "4c549498eb45f9aa1b4d7dc20a7b59b0847bbf1751cfcfc1642bdbe160012b89",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/db.py",
+      "language": "python",
+      "imports": [
+        "os",
+        "random",
+        "sqlite3",
+        "collections.abc.Iterable",
+        "datetime.UTC",
+        "datetime.datetime",
+        "datetime.timedelta",
+        "flask"
+      ],
+      "symbols": [
+        {
+          "name": "_email_local",
+          "kind": "function",
+          "signature": "def _email_local(name: str) -> str",
+          "docstring": "\u00ab\u0410\u043d\u043d\u0430 \u0421\u043c\u0438\u0440\u043d\u043e\u0432\u0430\u00bb -> \u00abanna.smirnova\u00bb (\u043b\u0430\u0442\u0438\u043d\u0438\u0446\u0430 \u0434\u043b\u044f \u0434\u0435\u043c\u043e-\u0430\u0434\u0440\u0435\u0441\u043e\u0432).",
+          "children": []
+        },
+        {
+          "name": "utcnow",
+          "kind": "function",
+          "signature": "def utcnow() -> datetime",
+          "docstring": "Return timezone-aware current UTC datetime.",
+          "children": []
+        },
+        {
+          "name": "reset_memory_conn",
+          "kind": "function",
+          "signature": "def reset_memory_conn() -> None",
+          "docstring": "Drop the in-memory singleton (used by test fixtures between runs).",
+          "children": []
+        },
+        {
+          "name": "_ensure_parent_dir",
+          "kind": "function",
+          "signature": "def _ensure_parent_dir(path: str) -> None",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "get_db",
+          "kind": "function",
+          "signature": "def get_db() -> sqlite3.Connection",
+          "docstring": "Return a per-request connection stored on flask.g.",
+          "children": []
+        },
+        {
+          "name": "close_db",
+          "kind": "function",
+          "signature": "def close_db(_exc: BaseException | None = None) -> None",
+          "docstring": "Teardown handler: close the request-scoped connection if any.",
+          "children": []
+        },
+        {
+          "name": "migrate",
+          "kind": "function",
+          "signature": "def migrate(conn: sqlite3.Connection) -> None",
+          "docstring": "\u0418\u0434\u0435\u043c\u043f\u043e\u0442\u0435\u043d\u0442\u043d\u0430\u044f \u043c\u0438\u0433\u0440\u0430\u0446\u0438\u044f \u0441\u0445\u0435\u043c\u044b \u0447\u0435\u0440\u0435\u0437 PRAGMA user_version.",
+          "children": []
+        },
+        {
+          "name": "init_db",
+          "kind": "function",
+          "signature": "def init_db(app: flask.Flask) -> None",
+          "docstring": "Create schema; seed demo orders only when DEMO_MODE is on (idempotent).",
+          "children": []
+        },
+        {
+          "name": "seed_demo_orders",
+          "kind": "function",
+          "signature": "def seed_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None",
+          "docstring": "\u0412\u0441\u0442\u0430\u0432\u0438\u0442\u044c ~60 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0437\u0430 60 \u0434\u043d\u0435\u0439 \u0441 \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d\u043d\u043e\u0439 \u0438\u0441\u0442\u043e\u0440\u0438\u0435\u0439 \u0441\u0442\u0430\u0442\u0443\u0441\u043e\u0432.",
+          "children": []
+        },
+        {
+          "name": "reset_demo_orders",
+          "kind": "function",
+          "signature": "def reset_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None",
+          "docstring": "Delete all orders + events, then run the deterministic seed.",
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/app.py": {
+    "hash": "b81ece5a8dc2cbaad470ab93a4bc94da4b5ac6e988609a256e2b79624ffb9ba9",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/app.py",
+      "language": "python",
+      "imports": [
+        "csv",
+        "hmac",
+        "io",
+        "logging",
+        "os",
+        "re",
+        "collections.abc.Callable",
+        "datetime.date",
+        "datetime.timedelta",
+        "decimal.Decimal",
+        "decimal.InvalidOperation",
+        "decimal.ROUND_HALF_UP",
+        "typing.Any",
+        "flask.Flask",
+        "flask.Response",
+        "flask.current_app",
+        "flask.jsonify",
+        "flask.make_response",
+        "flask.redirect",
+        "flask.render_template_string",
+        "flask.request",
+        "flask.send_from_directory",
+        "flask.session",
+        "werkzeug.exceptions.HTTPException",
+        "werkzeug.exceptions.NotFound",
+        "werkzeug.middleware.proxy_fix.ProxyFix",
+        "auth",
+        "auth.DEFAULT_PASSWORD",
+        "auth.DEFAULT_USERNAME",
+        "auth.check_rate_limit",
+        "auth.csrf_token",
+        "auth.load_or_generate_secret_key",
+        "auth.seconds_until_reset",
+        "auth.verify_password"
+      ],
+      "symbols": [
+        {
+          "name": "_env_flag",
+          "kind": "function",
+          "signature": "def _env_flag(name: str, default: str = \"0\") -> bool",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_configure_logging",
+          "kind": "function",
+          "signature": "def _configure_logging() -> None",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "JsonApiError",
+          "kind": "class",
+          "signature": "class JsonApiError(HTTPException)",
+          "docstring": null,
+          "children": [
+            {
+              "name": "__init__",
+              "kind": "function",
+              "signature": "def __init__(\n        self,\n        status: int,\n        message: str,\n        fields: dict[str, str] | None = None,\n    ) -> None",
+              "docstring": null,
+              "children": []
+            }
+          ]
+        },
+        {
+          "name": "_raise",
+          "kind": "function",
+          "signature": "def _raise(status: int, message: str, fields: dict[str, str] | None = None) -> None",
+          "docstring": "Unconditionally raise a JsonApiError.",
+          "children": []
+        },
+        {
+          "name": "create_app",
+          "kind": "function",
+          "signature": "def create_app(config: dict[str, Any] | None = None) -> Flask",
+          "docstring": "Create a configured Flask application.",
+          "children": []
+        },
+        {
+          "name": "_require_real_password",
+          "kind": "function",
+          "signature": "def _require_real_password(password: str | None) -> None",
+          "docstring": "\u0412\u043d\u0435 \u0434\u0435\u043c\u043e-\u0440\u0435\u0436\u0438\u043c\u0430 \u043d\u0435 \u0441\u0442\u0430\u0440\u0442\u0443\u0435\u043c \u0441 \u043f\u0443\u0441\u0442\u044b\u043c \u0438\u043b\u0438 \u043f\u0430\u0440\u043e\u043b\u0435\u043c \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e.",
+          "children": []
+        },
+        {
+          "name": "_configure_session_cookie",
+          "kind": "function",
+          "signature": "def _configure_session_cookie(app: Flask) -> None",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_before_request_guard",
+          "kind": "function",
+          "signature": "def _before_request_guard() -> Response | None",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_integration_guard",
+          "kind": "function",
+          "signature": "def _integration_guard() -> Response | None",
+          "docstring": "\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f \u0441 \u0431\u043e\u0442\u043e\u043c: \u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d\u0430 \u0431\u0435\u0437 \u0442\u043e\u043a\u0435\u043d\u0430; \u0438\u043d\u0430\u0447\u0435 \u043d\u0443\u0436\u0435\u043d \u0432\u0430\u043b\u0438\u0434\u043d\u044b\u0439 Bearer.",
+          "children": []
+        },
+        {
+          "name": "_after_security_headers",
+          "kind": "function",
+          "signature": "def _after_security_headers(response: Response) -> Response",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_json_error",
+          "kind": "function",
+          "signature": "def _json_error(message: str, status: int, fields: dict[str, str] | None = None) -> Response",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_json_validation_errors",
+          "kind": "function",
+          "signature": "def _json_validation_errors(fields: dict[str, str]) -> Response",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_is_authed",
+          "kind": "function",
+          "signature": "def _is_authed() -> bool",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_admin_only",
+          "kind": "function",
+          "signature": "def _admin_only() -> None",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_page_or_json_404",
+          "kind": "function",
+          "signature": "def _page_or_json_404() -> Response",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_is_path_denied",
+          "kind": "function",
+          "signature": "def _is_path_denied(path: str) -> bool",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_send_static",
+          "kind": "function",
+          "signature": "def _send_static(subdir: str, path: str) -> Response",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_render_page",
+          "kind": "function",
+          "signature": "def _render_page(name: str) -> str",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_validate_email",
+          "kind": "function",
+          "signature": "def _validate_email(value: str) -> bool",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_parse_amount_to_cents",
+          "kind": "function",
+          "signature": "def _parse_amount_to_cents(raw: Any) -> tuple[int | None, str | None]",
+          "docstring": "Parse a user-supplied amount (string/number) into integer kopecks (RUB cents).",
+          "children": []
+        },
+        {
+          "name": "_escape_like",
+          "kind": "function",
+          "signature": "def _escape_like(q: str) -> str",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_csv_safe",
+          "kind": "function",
+          "signature": "def _csv_safe(value: object) -> str",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_csv_phone",
+          "kind": "function",
+          "signature": "def _csv_phone(value: object) -> str",
+          "docstring": "\u0422\u0435\u043b\u0435\u0444\u043e\u043d +7XXXXXXXXXX -> \u00ab+7 (XXX) XXX XX-XX\u00bb \u0434\u043b\u044f \u0442\u0430\u0431\u043b\u0438\u0446\u044b.",
+          "children": []
+        },
+        {
+          "name": "_tg_url",
+          "kind": "function",
+          "signature": "def _tg_url(username: Any) -> str | None",
+          "docstring": "\u0421\u0441\u044b\u043b\u043a\u0430 \u043d\u0430 @username \u0442\u043e\u043b\u044c\u043a\u043e \u0434\u043b\u044f \u0432\u0430\u043b\u0438\u0434\u043d\u043e\u0433\u043e \u0438\u043c\u0435\u043d\u0438 (\u0431\u0435\u0437 javascript:/HTML).",
+          "children": []
+        },
+        {
+          "name": "_items_by_order",
+          "kind": "function",
+          "signature": "def _items_by_order(conn: Any, ids: list[int]) -> dict[int, list[dict[str, Any]]]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_parse_iso_date",
+          "kind": "function",
+          "signature": "def _parse_iso_date(s: str) -> date | None",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_register_routes",
+          "kind": "function",
+          "signature": "def _register_routes(app: Flask) -> None",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_ensure_instance",
+          "kind": "function",
+          "signature": "def _ensure_instance() -> None",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/auth.py": {
+    "hash": "fd5fc0a7f2e9c5e75bad193da01c4c86e2e1a4a78b21dbf811fee5f69ee7559c",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/auth.py",
+      "language": "python",
+      "imports": [
+        "os",
+        "secrets",
+        "time",
+        "collections.defaultdict",
+        "collections.abc.MutableMapping",
+        "typing.Any",
+        "flask.session",
+        "werkzeug.security.check_password_hash",
+        "werkzeug.security.generate_password_hash"
+      ],
+      "symbols": [
+        {
+          "name": "load_or_generate_secret_key",
+          "kind": "function",
+          "signature": "def load_or_generate_secret_key(app_dir: str) -> str",
+          "docstring": "Load SECRET_KEY from env or instance/secret_key file; generate + persist if miss",
+          "children": []
+        },
+        {
+          "name": "get_admin_credentials",
+          "kind": "function",
+          "signature": "def get_admin_credentials(\n    username_override: str | None = None,\n    password_override: str | None = None,\n    password_hash_override: str | None = None,\n) -> tuple[str, str]",
+          "docstring": "Return (username, password_hash) using env or injected overrides.",
+          "children": []
+        },
+        {
+          "name": "verify_password",
+          "kind": "function",
+          "signature": "def verify_password(password_hash: str, candidate: str) -> bool",
+          "docstring": "Constant-time comparison via werkzeug.",
+          "children": []
+        },
+        {
+          "name": "check_rate_limit",
+          "kind": "function",
+          "signature": "def check_rate_limit(ip: str, max_attempts: int = 5, window_sec: int = 60) -> bool",
+          "docstring": "Return True if attempt is allowed; False if the IP is over the limit.",
+          "children": []
+        },
+        {
+          "name": "seconds_until_reset",
+          "kind": "function",
+          "signature": "def seconds_until_reset(ip: str, window_sec: int = 60) -> int",
+          "docstring": "Best-effort guess of seconds remaining in the window for an IP.",
+          "children": []
+        },
+        {
+          "name": "reset_rate_limit",
+          "kind": "function",
+          "signature": "def reset_rate_limit() -> None",
+          "docstring": "Drop all rate-limit buckets. Used between pytest tests.",
+          "children": []
+        },
+        {
+          "name": "csrf_token",
+          "kind": "function",
+          "signature": "def csrf_token(sess: MutableMapping[str, Any] | None = None) -> str",
+          "docstring": "Return (and lazily create) the CSRF token for the current session.",
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/scripts/screenshots.py": {
+    "hash": "3b727c76adce1134931aef09461eb88fe99e9bbf45f5ca23711172a178a9bc8a",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/scripts/screenshots.py",
+      "language": "python",
+      "imports": [
+        "os",
+        "socket",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "time",
+        "urllib",
+        "pathlib.Path",
+        "playwright.sync_api.sync_playwright"
+      ],
+      "symbols": [
+        {
+          "name": "free_port",
+          "kind": "function",
+          "signature": "def free_port() -> int",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "wait_ready",
+          "kind": "function",
+          "signature": "def wait_ready(base: str) -> None",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "main",
+          "kind": "function",
+          "signature": "def main() -> int",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "new_page",
+          "kind": "function",
+          "signature": "def new_page(browser, base: str, theme: str, width: int, height: int)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "shoot_theme",
+          "kind": "function",
+          "signature": "def shoot_theme(browser, base: str, theme: str) -> None",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/scripts/build_icons.py": {
+    "hash": "f5bca5f4d55f48924db993bac5070529ee8d61224d8c226d40e0d0728aae168a",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/scripts/build_icons.py",
+      "language": "python",
+      "imports": [
+        "argparse",
+        "re",
+        "sys",
+        "pathlib.Path",
+        "urllib.parse.quote"
+      ],
+      "symbols": [
+        {
+          "name": "used_icons",
+          "kind": "function",
+          "signature": "def used_icons() -> list[str]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "svg_to_data_uri",
+          "kind": "function",
+          "signature": "def svg_to_data_uri(svg: str) -> str",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "main",
+          "kind": "function",
+          "signature": "def main() -> int",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_migration.py": {
+    "hash": "26879ce1837c88a375cf1e6fb14f2e51647f2ffb38a0032ef49be282c9b47d1c",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_migration.py",
+      "language": "python",
+      "imports": [
+        "sqlite3",
+        "tempfile",
+        "pathlib.Path",
+        "pytest",
+        "db"
+      ],
+      "symbols": [
+        {
+          "name": "workdir",
+          "kind": "function",
+          "signature": "def workdir()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_old_db",
+          "kind": "function",
+          "signature": "def _old_db(tmp_path)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_dump",
+          "kind": "function",
+          "signature": "def _dump(conn)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_migrate_old_db_keeps_data",
+          "kind": "function",
+          "signature": "def test_migrate_old_db_keeps_data(workdir)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_migrate_is_idempotent",
+          "kind": "function",
+          "signature": "def test_migrate_is_idempotent(workdir)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_constraints",
+          "kind": "function",
+          "signature": "def test_constraints(workdir)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_items_cascade_on_delete",
+          "kind": "function",
+          "signature": "def test_items_cascade_on_delete(workdir)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_fresh_db_has_new_schema",
+          "kind": "function",
+          "signature": "def test_fresh_db_has_new_schema(app, app_context)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_orders_create.py": {
+    "hash": "14a747a31b88ada55c12741c97fd0447e27907f0604473e8ad944fb632d356e0",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_orders_create.py",
+      "language": "python",
+      "imports": [
+        "pytest"
+      ],
+      "symbols": [
+        {
+          "name": "_headers",
+          "kind": "function",
+          "signature": "def _headers(csrf: str) -> dict[str, str]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_create_order_happy_path_201",
+          "kind": "function",
+          "signature": "def test_create_order_happy_path_201(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_create_order_amount_decimal_0_1_plus_0_2_is_exactly_30_cents",
+          "kind": "function",
+          "signature": "def test_create_order_amount_decimal_0_1_plus_0_2_is_exactly_30_cents(authed, app)",
+          "docstring": "Using Decimal parsing, 0.1 + 0.2 must come out as exactly 30 cents.",
+          "children": []
+        },
+        {
+          "name": "test_create_order_validation_failures",
+          "kind": "function",
+          "signature": "def test_create_order_validation_failures(\n    authed, app, payload_overrides, expected_field, expected_msg_part\n)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_create_order_whitespace_in_name_and_product_is_trimmed",
+          "kind": "function",
+          "signature": "def test_create_order_whitespace_in_name_and_product_is_trimmed(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_create_order_optional_omitted_email_is_none",
+          "kind": "function",
+          "signature": "def test_create_order_optional_omitted_email_is_none(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_create_order_empty_email_is_treated_as_none",
+          "kind": "function",
+          "signature": "def test_create_order_empty_email_is_treated_as_none(authed, app)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_demo_mode.py": {
+    "hash": "70fbe82a3990055182fb59854dda1daaeba5699fe539bf974eeea2ae01883312",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_demo_mode.py",
+      "language": "python",
+      "imports": [
+        "os",
+        "contextlib.contextmanager",
+        "pytest",
+        "auth",
+        "db",
+        "app.create_app"
+      ],
+      "symbols": [
+        {
+          "name": "_env",
+          "kind": "function",
+          "signature": "def _env(**values: str | None)",
+          "docstring": "\u0412\u0440\u0435\u043c\u0435\u043d\u043d\u043e \u0432\u044b\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043f\u0435\u0440\u0435\u043c\u0435\u043d\u043d\u044b\u0435 \u043e\u043a\u0440\u0443\u0436\u0435\u043d\u0438\u044f (None = \u0443\u0434\u0430\u043b\u0438\u0442\u044c).",
+          "children": []
+        },
+        {
+          "name": "_prod_app",
+          "kind": "function",
+          "signature": "def _prod_app(password: str = STRONG_PASSWORD, **extra)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_clean",
+          "kind": "function",
+          "signature": "def _clean()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_healthz_is_public_and_minimal",
+          "kind": "function",
+          "signature": "def test_healthz_is_public_and_minimal(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_healthz_does_not_touch_session",
+          "kind": "function",
+          "signature": "def test_healthz_does_not_touch_session(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_demo_mode_shows_credentials_and_seeds",
+          "kind": "function",
+          "signature": "def test_demo_mode_shows_credentials_and_seeds(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_demo_mode_reset_works",
+          "kind": "function",
+          "signature": "def test_demo_mode_reset_works(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_demo_mode_dashboard_has_reset_button",
+          "kind": "function",
+          "signature": "def test_demo_mode_dashboard_has_reset_button(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_prod_refuses_default_password",
+          "kind": "function",
+          "signature": "def test_prod_refuses_default_password()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_prod_refuses_empty_password",
+          "kind": "function",
+          "signature": "def test_prod_refuses_empty_password()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_prod_default_is_not_demo",
+          "kind": "function",
+          "signature": "def test_prod_default_is_not_demo()",
+          "docstring": "\u0411\u0435\u0437 DEMO_MODE \u0432 \u043e\u043a\u0440\u0443\u0436\u0435\u043d\u0438\u0438 \u0438 \u0432 \u043a\u043e\u043d\u0444\u0438\u0433\u0435 \u0440\u0435\u0436\u0438\u043c \u0432\u044b\u043a\u043b\u044e\u0447\u0435\u043d.",
+          "children": []
+        },
+        {
+          "name": "test_prod_hides_credentials_and_does_not_seed",
+          "kind": "function",
+          "signature": "def test_prod_hides_credentials_and_does_not_seed()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_prod_login_works_and_demo_reset_is_404",
+          "kind": "function",
+          "signature": "def test_prod_login_works_and_demo_reset_is_404()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_prod_demo_credentials_do_not_log_in",
+          "kind": "function",
+          "signature": "def test_prod_demo_credentials_do_not_log_in()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_hsts_present_when_not_debug",
+          "kind": "function",
+          "signature": "def test_hsts_present_when_not_debug(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_hsts_absent_in_debug",
+          "kind": "function",
+          "signature": "def test_hsts_absent_in_debug()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_fail_logins",
+          "kind": "function",
+          "signature": "def _fail_logins(client, forwarded: str, n: int) -> list[int]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_without_trust_proxy_xff_is_ignored",
+          "kind": "function",
+          "signature": "def test_without_trust_proxy_xff_is_ignored()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_with_trust_proxy_each_forwarded_ip_has_own_bucket",
+          "kind": "function",
+          "signature": "def test_with_trust_proxy_each_forwarded_ip_has_own_bucket()",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_login.py": {
+    "hash": "e75ac3d02353f8f7f9c550887c19a1b7510b3e1885b569dfd7e5054d088cb8c9",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_login.py",
+      "language": "python",
+      "imports": [
+        "tests.conftest.TEST_PASSWORD"
+      ],
+      "symbols": [
+        {
+          "name": "test_login_success_returns_200_with_csrf",
+          "kind": "function",
+          "signature": "def test_login_success_returns_200_with_csrf(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_login_invalid_password_returns_401",
+          "kind": "function",
+          "signature": "def test_login_invalid_password_returns_401(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_login_rate_limit_six_wrong_attempts_returns_429_then_429",
+          "kind": "function",
+          "signature": "def test_login_rate_limit_six_wrong_attempts_returns_429_then_429(client)",
+          "docstring": "Five wrong attempts are allowed; sixth (and more) must be 429.",
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_static_safety.py": {
+    "hash": "183f9499e7408b71e4dc2333af14e1e07834ba1ccfa7bc75fa0868ad1def4da8",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_static_safety.py",
+      "language": "python",
+      "imports": [
+        "pytest"
+      ],
+      "symbols": [
+        {
+          "name": "test_dangerous_urls_respond_404",
+          "kind": "function",
+          "signature": "def test_dangerous_urls_respond_404(client, url)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_legacy_dashboard_html_redirects_permanently_to_dashboard",
+          "kind": "function",
+          "signature": "def test_legacy_dashboard_html_redirects_permanently_to_dashboard(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_static_assets_are_served",
+          "kind": "function",
+          "signature": "def test_static_assets_are_served(client)",
+          "docstring": "Whitelisted asset directories should still respond 200.",
+          "children": []
+        },
+        {
+          "name": "test_nonexistent_static_asset_returns_404",
+          "kind": "function",
+          "signature": "def test_nonexistent_static_asset_returns_404(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_root_redirects_to_login_when_anonymous",
+          "kind": "function",
+          "signature": "def test_root_redirects_to_login_when_anonymous(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_root_redirects_to_dashboard_when_logged_in",
+          "kind": "function",
+          "signature": "def test_root_redirects_to_dashboard_when_logged_in(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_login_page_is_open_and_blog_is_gone",
+          "kind": "function",
+          "signature": "def test_login_page_is_open_and_blog_is_gone(client)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_stats.py": {
+    "hash": "44d0d6233862a0e72e03528821f4e79e3b6d027397e9748b2c6602567ceadca9",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_stats.py",
+      "language": "python",
+      "imports": [],
+      "symbols": [
+        {
+          "name": "test_stats_kpi_revenue_matches_hand_computation",
+          "kind": "function",
+          "signature": "def test_stats_kpi_revenue_matches_hand_computation(authed, seed_small)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_stats_series_has_exactly_days_entries_zero_filled",
+          "kind": "function",
+          "signature": "def test_stats_series_has_exactly_days_entries_zero_filled(authed, seed_small)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_stats_kpi_prev_window_is_prior_same_length_period",
+          "kind": "function",
+          "signature": "def test_stats_kpi_prev_window_is_prior_same_length_period(authed, seed_small, app)",
+          "docstring": "kpi_prev.orders should be 0 for seed_small (all 5 orders placed in last 3 days).",
+          "children": []
+        },
+        {
+          "name": "test_stats_by_status_counts_match_fixture",
+          "kind": "function",
+          "signature": "def test_stats_by_status_counts_match_fixture(authed, seed_small)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_stats_top_products_contains_dashboard_and_web_app",
+          "kind": "function",
+          "signature": "def test_stats_top_products_contains_dashboard_and_web_app(authed, seed_small)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_orders_transitions.py": {
+    "hash": "78c9f0945d01b7b16887113fab4a150864376c828bc72f7129304346ddc8fe35",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_orders_transitions.py",
+      "language": "python",
+      "imports": [
+        "pytest"
+      ],
+      "symbols": [
+        {
+          "name": "_headers",
+          "kind": "function",
+          "signature": "def _headers(csrf: str) -> dict[str, str]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_make_order",
+          "kind": "function",
+          "signature": "def _make_order(app, status: str) -> int",
+          "docstring": "Insert an order directly at a given status with a consistent event chain.",
+          "children": []
+        },
+        {
+          "name": "test_status_transition_matrix",
+          "kind": "function",
+          "signature": "def test_status_transition_matrix(authed, app, current: str, target: str)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_terminal_completed_status_cannot_transition_anywhere",
+          "kind": "function",
+          "signature": "def test_terminal_completed_status_cannot_transition_anywhere(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_terminal_cancelled_status_cannot_transition_anywhere",
+          "kind": "function",
+          "signature": "def test_terminal_cancelled_status_cannot_transition_anywhere(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_unknown_status_returns_422_not_409",
+          "kind": "function",
+          "signature": "def test_unknown_status_returns_422_not_409(authed, app)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_auth_wall.py": {
+    "hash": "b4742b6f696c3f550bf217f5fcafb25b4144039a8222adcebc6a3b1af3949b33",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_auth_wall.py",
+      "language": "python",
+      "imports": [],
+      "symbols": [
+        {
+          "name": "test_protected_api_endpoints_return_401_without_session",
+          "kind": "function",
+          "signature": "def test_protected_api_endpoints_return_401_without_session(app, client)",
+          "docstring": "Enumerate app.url_map and verify /api/* guard (allowlist only).",
+          "children": []
+        },
+        {
+          "name": "test_dashboard_redirects_anonymous_to_admin",
+          "kind": "function",
+          "signature": "def test_dashboard_redirects_anonymous_to_admin(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_admin_redirects_authed_to_dashboard",
+          "kind": "function",
+          "signature": "def test_admin_redirects_authed_to_dashboard(authed)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_orders_list.py": {
+    "hash": "f518e0a6cac52baf6219384a541e704a42870f80579fe116f14a7d7818b74f07",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_orders_list.py",
+      "language": "python",
+      "imports": [],
+      "symbols": [
+        {
+          "name": "_headers",
+          "kind": "function",
+          "signature": "def _headers(csrf: str) -> dict[str, str]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_seed",
+          "kind": "function",
+          "signature": "def _seed(authed, app)",
+          "docstring": "Create a tiny known corpus via the public API.",
+          "children": []
+        },
+        {
+          "name": "test_filter_status_paid_returns_only_paid",
+          "kind": "function",
+          "signature": "def test_filter_status_paid_returns_only_paid(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_filter_search_q_by_customer_name_like",
+          "kind": "function",
+          "signature": "def test_filter_search_q_by_customer_name_like(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_filter_search_q_by_hash_id",
+          "kind": "function",
+          "signature": "def test_filter_search_q_by_hash_id(authed, app)",
+          "docstring": "Both ``1001`` and ``#1001`` should find the order whose id is 1.",
+          "children": []
+        },
+        {
+          "name": "test_filter_date_from_to_range",
+          "kind": "function",
+          "signature": "def test_filter_date_from_to_range(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_filter_min_max_amount",
+          "kind": "function",
+          "signature": "def test_filter_min_max_amount(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_sort_unknown_column_returns_422",
+          "kind": "function",
+          "signature": "def test_sort_unknown_column_returns_422(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_pagination_page_2_returns_right_subset",
+          "kind": "function",
+          "signature": "def test_pagination_page_2_returns_right_subset(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_sql_injection_payload_in_q_is_harmless",
+          "kind": "function",
+          "signature": "def test_sql_injection_payload_in_q_is_harmless(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_sort_amount_cents_asc_applies",
+          "kind": "function",
+          "signature": "def test_sort_amount_cents_asc_applies(authed, app)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_orders_telegram.py": {
+    "hash": "56c63d6c92d735ece6433531b3dd48375b539d2fc27bf265eb71dfeed5882815",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_orders_telegram.py",
+      "language": "python",
+      "imports": [
+        "csv",
+        "io",
+        "pytest",
+        "db"
+      ],
+      "symbols": [
+        {
+          "name": "_insert",
+          "kind": "function",
+          "signature": "def _insert(conn, name, source=\"telegram\", username=\"baker_fan\", phone=\"+79990001122\",\n            delivery=\"2026-10-20\", items=((\"\u041c\u0435\u0434\u043e\u0432\u0438\u043a, 1 \u043a\u0433\", 240000, 2),))",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "tg",
+          "kind": "function",
+          "signature": "def tg(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_filter_by_source",
+          "kind": "function",
+          "signature": "def test_filter_by_source(tg)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_filter_bad_source_422",
+          "kind": "function",
+          "signature": "def test_filter_bad_source_422(tg, bad)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_detail_has_items_phone_delivery_link",
+          "kind": "function",
+          "signature": "def test_detail_has_items_phone_delivery_link(tg)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_detail_panel_order_has_no_link_and_empty_items",
+          "kind": "function",
+          "signature": "def test_detail_panel_order_has_no_link_and_empty_items(tg)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_list_exposes_source_and_safe_link",
+          "kind": "function",
+          "signature": "def test_list_exposes_source_and_safe_link(tg)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_xss_name_returned_as_json_data_not_html",
+          "kind": "function",
+          "signature": "def test_xss_name_returned_as_json_data_not_html(tg)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csv_new_columns",
+          "kind": "function",
+          "signature": "def test_csv_new_columns(tg)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csv_formula_injection_new_columns",
+          "kind": "function",
+          "signature": "def test_csv_formula_injection_new_columns(tg)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csv_source_filter_invalid_422",
+          "kind": "function",
+          "signature": "def test_csv_source_filter_invalid_422(tg)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/conftest.py": {
+    "hash": "14ba42eb9fff85e189829a8e17f25bb66ad8616fb88a6b3c24819275ede419a6",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/conftest.py",
+      "language": "python",
+      "imports": [
+        "collections.abc.Iterator",
+        "typing.Any",
+        "pytest",
+        "werkzeug",
+        "auth",
+        "db",
+        "app.create_app"
+      ],
+      "symbols": [
+        {
+          "name": "app_context",
+          "kind": "function",
+          "signature": "def app_context(app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "app",
+          "kind": "function",
+          "signature": "def app() -> Iterator[Any]",
+          "docstring": "Flask app wired to a throwaway :memory: SQLite database.",
+          "children": []
+        },
+        {
+          "name": "client",
+          "kind": "function",
+          "signature": "def client(app)",
+          "docstring": "Flask test client for the in-memory app.",
+          "children": []
+        },
+        {
+          "name": "authed",
+          "kind": "function",
+          "signature": "def authed(client) -> tuple[Any, str]",
+          "docstring": "Client logged in via ``/api/login`` plus the negotiated CSRF token.",
+          "children": []
+        },
+        {
+          "name": "seed_small",
+          "kind": "function",
+          "signature": "def seed_small(app, app_context)",
+          "docstring": "Create a tiny, hand-verifiable order fixture.",
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_i18n.py": {
+    "hash": "e399aa8906eabbe7416fff34adec4b8bbc7f219c0c0a1d801ee2cab943d2c100",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_i18n.py",
+      "language": "python",
+      "imports": [
+        "json",
+        "re",
+        "shutil",
+        "subprocess",
+        "html.parser.HTMLParser",
+        "pathlib.Path",
+        "pytest"
+      ],
+      "symbols": [
+        {
+          "name": "_parse_dicts",
+          "kind": "function",
+          "signature": "def _parse_dicts() -> dict[str, dict[str, str]]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_base",
+          "kind": "function",
+          "signature": "def _base(key: str) -> str",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_Collector",
+          "kind": "class",
+          "signature": "class _Collector(HTMLParser)",
+          "docstring": null,
+          "children": [
+            {
+              "name": "__init__",
+              "kind": "function",
+              "signature": "def __init__(self) -> None",
+              "docstring": null,
+              "children": []
+            },
+            {
+              "name": "handle_starttag",
+              "kind": "function",
+              "signature": "def handle_starttag(self, tag, attrs)",
+              "docstring": null,
+              "children": []
+            },
+            {
+              "name": "handle_data",
+              "kind": "function",
+              "signature": "def handle_data(self, data)",
+              "docstring": null,
+              "children": []
+            },
+            {
+              "name": "handle_endtag",
+              "kind": "function",
+              "signature": "def handle_endtag(self, tag)",
+              "docstring": null,
+              "children": []
+            }
+          ]
+        },
+        {
+          "name": "_collect",
+          "kind": "function",
+          "signature": "def _collect(path: str) -> _Collector",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_used_keys",
+          "kind": "function",
+          "signature": "def _used_keys() -> set[str]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_ru_and_en_have_same_keys",
+          "kind": "function",
+          "signature": "def test_ru_and_en_have_same_keys()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_plural_forms_are_complete",
+          "kind": "function",
+          "signature": "def test_plural_forms_are_complete()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_placeholders_match_between_languages",
+          "kind": "function",
+          "signature": "def test_placeholders_match_between_languages()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_no_empty_translations",
+          "kind": "function",
+          "signature": "def test_no_empty_translations()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_every_used_key_exists_in_both_languages",
+          "kind": "function",
+          "signature": "def test_every_used_key_exists_in_both_languages()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_no_unused_keys",
+          "kind": "function",
+          "signature": "def test_no_unused_keys()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_dynamic_keys_for_every_status_exist",
+          "kind": "function",
+          "signature": "def test_dynamic_keys_for_every_status_exist()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_static_markup_matches_russian_dictionary",
+          "kind": "function",
+          "signature": "def test_static_markup_matches_russian_dictionary(page)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_pages_declare_russian_default_and_load_i18n_first",
+          "kind": "function",
+          "signature": "def test_pages_declare_russian_default_and_load_i18n_first(page)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_product_datalist_comes_from_catalogue",
+          "kind": "function",
+          "signature": "def test_product_datalist_comes_from_catalogue(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_every_server_message_has_a_translation",
+          "kind": "function",
+          "signature": "def test_every_server_message_has_a_translation()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_i18n_runtime_behaviour_in_node",
+          "kind": "function",
+          "signature": "def test_i18n_runtime_behaviour_in_node()",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_csp.py": {
+    "hash": "f02783ef4329048c0ba5b456079e8704a2ad3aa810acb9829f7f6d2132e0c1f4",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_csp.py",
+      "language": "python",
+      "imports": [
+        "re"
+      ],
+      "symbols": [
+        {
+          "name": "_script_src",
+          "kind": "function",
+          "signature": "def _script_src(csp: str) -> str",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csp_header_on_pages_and_api",
+          "kind": "function",
+          "signature": "def test_csp_header_on_pages_and_api(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_pages",
+          "kind": "function",
+          "signature": "def _pages(app, authed)",
+          "docstring": "\u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u0432\u0445\u043e\u0434\u0430 (\u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0439 \u0433\u043e\u0441\u0442\u0435\u0432\u043e\u0439 \u043a\u043b\u0438\u0435\u043d\u0442) \u0438 \u0434\u0430\u0448\u0431\u043e\u0440\u0434 \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430.",
+          "children": []
+        },
+        {
+          "name": "test_pages_have_no_inline_scripts_or_handlers",
+          "kind": "function",
+          "signature": "def test_pages_have_no_inline_scripts_or_handlers(app, authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csp_allows_no_external_hosts",
+          "kind": "function",
+          "signature": "def test_csp_allows_no_external_hosts(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_chartjs_is_served_locally",
+          "kind": "function",
+          "signature": "def test_chartjs_is_served_locally(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_icons_are_served_locally",
+          "kind": "function",
+          "signature": "def test_icons_are_served_locally(app, authed)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_csv.py": {
+    "hash": "5195269eca5f2b6552d32d0119d3128deca4d4019c1b6439c02f0a902e41ff5f",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_csv.py",
+      "language": "python",
+      "imports": [
+        "csv",
+        "io"
+      ],
+      "symbols": [
+        {
+          "name": "_headers",
+          "kind": "function",
+          "signature": "def _headers(csrf: str) -> dict[str, str]",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_seed",
+          "kind": "function",
+          "signature": "def _seed(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csv_bom_is_utf8_byte_order_mark",
+          "kind": "function",
+          "signature": "def test_csv_bom_is_utf8_byte_order_mark(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csv_header_row_matches_spec",
+          "kind": "function",
+          "signature": "def test_csv_header_row_matches_spec(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csv_row_count_matches_filtered_api_total",
+          "kind": "function",
+          "signature": "def test_csv_row_count_matches_filtered_api_total(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csv_formula_prefixes_are_escaped_with_single_quote",
+          "kind": "function",
+          "signature": "def test_csv_formula_prefixes_are_escaped_with_single_quote(authed, app)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_csv_content_disposition_filename_contains_today",
+          "kind": "function",
+          "signature": "def test_csv_content_disposition_filename_contains_today(authed, app)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_csrf.py": {
+    "hash": "431f7d166cd463a99920289b1bf620894274a9af66637df38b9df4ec54dc1f06",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_csrf.py",
+      "language": "python",
+      "imports": [
+        "tests.conftest.TEST_PASSWORD"
+      ],
+      "symbols": [
+        {
+          "name": "_create_order_payload",
+          "kind": "function",
+          "signature": "def _create_order_payload()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_login_is_csrf_exempt",
+          "kind": "function",
+          "signature": "def test_login_is_csrf_exempt(client)",
+          "docstring": "POST /api/login has no CSRF requirement \u2013 user is not authed yet.",
+          "children": []
+        },
+        {
+          "name": "test_post_orders_without_csrf_returns_403",
+          "kind": "function",
+          "signature": "def test_post_orders_without_csrf_returns_403(client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_patch_order_status_without_csrf_returns_403",
+          "kind": "function",
+          "signature": "def test_patch_order_status_without_csrf_returns_403(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_post_logout_without_csrf_returns_403",
+          "kind": "function",
+          "signature": "def test_post_logout_without_csrf_returns_403(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_mutating_request_with_wrong_csrf_value_returns_403",
+          "kind": "function",
+          "signature": "def test_mutating_request_with_wrong_csrf_value_returns_403(authed)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_integration_token_needs_no_csrf_but_session_post_still_does",
+          "kind": "function",
+          "signature": "def test_integration_token_needs_no_csrf_but_session_post_still_does(authed)",
+          "docstring": "\u0422\u043e\u043a\u0435\u043d \u043e\u0441\u0432\u043e\u0431\u043e\u0436\u0434\u0430\u0435\u0442 \u0442\u043e\u043b\u044c\u043a\u043e /api/integrations/*; \u043e\u0431\u044b\u0447\u043d\u044b\u0435 POST \u043f\u043e-\u043f\u0440\u0435\u0436\u043d\u0435\u043c\u0443 \u0442\u0440\u0435\u0431\u0443\u044e\u0442 C",
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_integrations_auth.py": {
+    "hash": "885586bd3ad4e6aaad1115ecf68b42b16554a805ed15021b634814a561d97f8d",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_integrations_auth.py",
+      "language": "python",
+      "imports": [
+        "pytest",
+        "auth",
+        "db",
+        "app.create_app",
+        "tests.conftest.TEST_PASSWORD",
+        "tests.conftest.TEST_PASSWORD_HASH"
+      ],
+      "symbols": [
+        {
+          "name": "_make",
+          "kind": "function",
+          "signature": "def _make(token)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "bot_client",
+          "kind": "function",
+          "signature": "def bot_client()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "_bearer",
+          "kind": "function",
+          "signature": "def _bearer(t)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_disabled_without_token_returns_404",
+          "kind": "function",
+          "signature": "def test_disabled_without_token_returns_404()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_short_token_refuses_to_start",
+          "kind": "function",
+          "signature": "def test_short_token_refuses_to_start()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_no_header_returns_401",
+          "kind": "function",
+          "signature": "def test_no_header_returns_401(bot_client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_bad_token_returns_401",
+          "kind": "function",
+          "signature": "def test_bad_token_returns_401(bot_client, header)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_valid_token_works",
+          "kind": "function",
+          "signature": "def test_valid_token_works(bot_client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_valid_token_unknown_integration_path_is_404",
+          "kind": "function",
+          "signature": "def test_valid_token_unknown_integration_path_is_404(bot_client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_session_does_not_replace_token",
+          "kind": "function",
+          "signature": "def test_session_does_not_replace_token(bot_client)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_token_does_not_open_regular_api",
+          "kind": "function",
+          "signature": "def test_token_does_not_open_regular_api(bot_client, method, path)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_seed.py": {
+    "hash": "67bdd9294b74ecfc4536a51002c7c83db066ad36e886377593f9026745b4ec27",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/tests/test_seed.py",
+      "language": "python",
+      "imports": [
+        "re",
+        "db"
+      ],
+      "symbols": [
+        {
+          "name": "test_catalogue_has_nine_russian_items_with_stable_prices",
+          "kind": "function",
+          "signature": "def test_catalogue_has_nine_russian_items_with_stable_prices()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_seeded_orders_use_catalogue_and_cyrillic_names",
+          "kind": "function",
+          "signature": "def test_seeded_orders_use_catalogue_and_cyrillic_names(app, app_context)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "test_seeded_timestamps_are_never_in_the_future",
+          "kind": "function",
+          "signature": "def test_seeded_timestamps_are_never_in_the_future(app, app_context)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/admin.js": {
+    "hash": "e5d4b8b750c2ac8b6e6946c4fa9bfede6f81d24166eab8fc238308aa53d42f9e",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/admin.js",
+      "language": "javascript",
+      "imports": [],
+      "symbols": []
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/dashboard.js": {
+    "hash": "261e843673692ea33e7383aa2358ac0916779fea2d51fd2d3fe0ea9be19e456a",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/dashboard.js",
+      "language": "javascript",
+      "imports": [],
+      "symbols": [
+        {
+          "name": "relFmt",
+          "kind": "function",
+          "signature": "const relFmt = () =>",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "el",
+          "kind": "function",
+          "signature": "function el(tag, props, children)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "formatMoney",
+          "kind": "function",
+          "signature": "function formatMoney(cents)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "relativeTime",
+          "kind": "function",
+          "signature": "function relativeTime(iso)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "sourceBadge",
+          "kind": "function",
+          "signature": "function sourceBadge(src)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "tgLink",
+          "kind": "function",
+          "signature": "function tgLink(o)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "badge",
+          "kind": "function",
+          "signature": "function badge(status)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "computeDelta",
+          "kind": "function",
+          "signature": "function computeDelta(curr, prev)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "debounce",
+          "kind": "function",
+          "signature": "function debounce(fn, wait)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "stateToQuery",
+          "kind": "function",
+          "signature": "function stateToQuery()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "applyStateFromUrl",
+          "kind": "function",
+          "signature": "function applyStateFromUrl()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "pushStateToUrl",
+          "kind": "function",
+          "signature": "function pushStateToUrl()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "syncUIFromState",
+          "kind": "function",
+          "signature": "function syncUIFromState()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "refreshAll",
+          "kind": "function",
+          "signature": "function refreshAll()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "refreshStats",
+          "kind": "function",
+          "signature": "function refreshStats()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderKpis",
+          "kind": "function",
+          "signature": "function renderKpis(data)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "themeColors",
+          "kind": "function",
+          "signature": "function themeColors()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderRevenueChart",
+          "kind": "function",
+          "signature": "function renderRevenueChart(data)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderStatusChart",
+          "kind": "function",
+          "signature": "function renderStatusChart(data)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderTopProducts",
+          "kind": "function",
+          "signature": "function renderTopProducts(data)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "refreshActivity",
+          "kind": "function",
+          "signature": "function refreshActivity()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderActivity",
+          "kind": "function",
+          "signature": "function renderActivity(items)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "refreshTable",
+          "kind": "function",
+          "signature": "function refreshTable(refreshCountsToo)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "setTableLoading",
+          "kind": "function",
+          "signature": "function setTableLoading()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderTableError",
+          "kind": "function",
+          "signature": "function renderTableError(err)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderTable",
+          "kind": "function",
+          "signature": "function renderTable(data)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderPagination",
+          "kind": "function",
+          "signature": "function renderPagination(data)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "refreshChipCounts",
+          "kind": "function",
+          "signature": "function refreshChipCounts()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "changeStatus",
+          "kind": "function",
+          "signature": "function changeStatus(id, status)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "closeAllStatusMenus",
+          "kind": "function",
+          "signature": "function closeAllStatusMenus()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "askConfirm",
+          "kind": "function",
+          "signature": "function askConfirm(title, body, onOk)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "openOrderDrawer",
+          "kind": "function",
+          "signature": "function openOrderDrawer(id)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "closeOrderDrawer",
+          "kind": "function",
+          "signature": "function closeOrderDrawer()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderOrderDrawer",
+          "kind": "function",
+          "signature": "function renderOrderDrawer(order)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "submitNewOrder",
+          "kind": "function",
+          "signature": "function submitNewOrder(e)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "exportCsv",
+          "kind": "function",
+          "signature": "function exportCsv()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "resetDemoData",
+          "kind": "function",
+          "signature": "function resetDemoData()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "initDashboardUI",
+          "kind": "function",
+          "signature": "function initDashboardUI()",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/i18n.js": {
+    "hash": "c299aac4905caf24325969c22bf26f164daadfa6a588314802ed03562e7e03bc",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/i18n.js",
+      "language": "javascript",
+      "imports": [],
+      "symbols": [
+        {
+          "name": "format",
+          "kind": "function",
+          "signature": "function format(text, params)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "t",
+          "kind": "function",
+          "signature": "function t(key, params)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "tn",
+          "kind": "function",
+          "signature": "function tn(key, n, params)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "apiMessage",
+          "kind": "function",
+          "signature": "function apiMessage(message)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "apply",
+          "kind": "function",
+          "signature": "function apply(root)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "setLang",
+          "kind": "function",
+          "signature": "function setLang(next)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/common.js": {
+    "hash": "3ac56bdafa6dda59226e31e842aec3a46b940b9c7a01d85f3990f48ac052bf1f",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/common.js",
+      "language": "javascript",
+      "imports": [],
+      "symbols": [
+        {
+          "name": "$",
+          "kind": "function",
+          "signature": "const $ = (sel, root = document) =>",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "$$",
+          "kind": "function",
+          "signature": "const $$ = (sel, root = document) =>",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "setCsrfToken",
+          "kind": "function",
+          "signature": "function setCsrfToken(tok)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "getCsrfToken",
+          "kind": "function",
+          "signature": "function getCsrfToken()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "ApiError",
+          "kind": "class",
+          "signature": "class ApiError",
+          "docstring": null,
+          "children": [
+            {
+              "name": "constructor",
+              "kind": "method",
+              "signature": "constructor(status, message, fields)",
+              "docstring": null,
+              "children": []
+            }
+          ]
+        },
+        {
+          "name": "safeNextPath",
+          "kind": "function",
+          "signature": "function safeNextPath(value)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "ensureToastContainer",
+          "kind": "function",
+          "signature": "function ensureToastContainer()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "toast",
+          "kind": "function",
+          "signature": "function toast(message, variant)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "setTheme",
+          "kind": "function",
+          "signature": "function setTheme(theme)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "initTheme",
+          "kind": "function",
+          "signature": "function initTheme()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "openModal",
+          "kind": "function",
+          "signature": "function openModal(id)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "closeModal",
+          "kind": "function",
+          "signature": "function closeModal(id)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "closeDrawer",
+          "kind": "function",
+          "signature": "function closeDrawer(id)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "pageTransition",
+          "kind": "function",
+          "signature": "function pageTransition(href)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "initNav",
+          "kind": "function",
+          "signature": "function initNav()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "initReveal",
+          "kind": "function",
+          "signature": "function initReveal()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "initTilt",
+          "kind": "function",
+          "signature": "function initTilt()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "initBackToTop",
+          "kind": "function",
+          "signature": "function initBackToTop()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "api",
+          "kind": "function",
+          "signature": "function api(path, options = {})",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "injectChrome",
+          "kind": "function",
+          "signature": "function injectChrome()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "bootstrapAuthUI",
+          "kind": "function",
+          "signature": "function bootstrapAuthUI()",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "clearFieldErrors",
+          "kind": "function",
+          "signature": "function clearFieldErrors(form)",
+          "docstring": null,
+          "children": []
+        },
+        {
+          "name": "renderFieldErrors",
+          "kind": "function",
+          "signature": "function renderFieldErrors(form, fields)",
+          "docstring": null,
+          "children": []
+        }
+      ]
+    }
+  },
+  "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/vendor/chart.umd.min.js": {
+    "hash": "48444a82d4edcb5bec0f1965faacdde18d9c17db3063d042abada2f705c9f54a",
+    "index": {
+      "path": "/home/kirill/Desktop/VibeProjects/orders-admin-panel/js/vendor/chart.umd.min.js",
+      "language": "javascript",
+      "imports": [],
+      "symbols": []
+    }
+  }
+}

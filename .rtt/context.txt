@@ -1,0 +1,349 @@
+# rtt index | generated 2026-10-15 15:16 | 27 files | 4262 tokens
+# If this looks outdated, ask the user to run: rtt update
+# app.py [python]
+imports: csv, hmac, io, logging, os, re, collections.abc.Callable, datetime.date, datetime.timedelta, decimal.Decimal, decimal.InvalidOperation, decimal.ROUND_HALF_UP, typing.Any, flask.Flask, flask.Response, flask.current_app, flask.jsonify, flask.make_response, flask.redirect, flask.render_template_string, flask.request, flask.send_from_directory, flask.session, werkzeug.exceptions.HTTPException, werkzeug.exceptions.NotFound, werkzeug.middleware.proxy_fix.ProxyFix, auth, auth.DEFAULT_PASSWORD, auth.DEFAULT_USERNAME, auth.check_rate_limit, auth.csrf_token, auth.load_or_generate_secret_key, auth.seconds_until_reset, auth.verify_password
+def _env_flag(name: str, default: str = "0") -> bool
+def _configure_logging() -> None
+class JsonApiError(HTTPException)
+  def __init__(
+        self,
+        status: int,
+        message: str,
+        fields: dict[str, str] | None = None,
+    ) -> None
+def _raise(status: int, message: str, fields: dict[str, str] | None = None) -> None  # Unconditionally raise a JsonApiError.
+def create_app(config: dict[str, Any] | None = None) -> Flask  # Create a configured Flask application.
+def _require_real_password(password: str | None) -> None  # Вне демо-режима не стартуем с пустым или паролем по умолчанию.
+def _configure_session_cookie(app: Flask) -> None
+def _before_request_guard() -> Response | None
+def _integration_guard() -> Response | None  # Интеграция с ботом: выключена без токена; иначе нужен валидный Bearer.
+def _after_security_headers(response: Response) -> Response
+def _json_error(message: str, status: int, fields: dict[str, str] | None = None) -> Response
+def _json_validation_errors(fields: dict[str, str]) -> Response
+def _is_authed() -> bool
+def _admin_only() -> None
+def _page_or_json_404() -> Response
+def _is_path_denied(path: str) -> bool
+def _send_static(subdir: str, path: str) -> Response
+def _render_page(name: str) -> str
+def _validate_email(value: str) -> bool
+def _parse_amount_to_cents(raw: Any) -> tuple[int | None, str | None]  # Parse a user-supplied amount (string/number) into integer kopecks (RUB cents).
+def _escape_like(q: str) -> str
+def _csv_safe(value: object) -> str
+def _csv_phone(value: object) -> str  # Телефон +7XXXXXXXXXX -> «+7 (XXX) XXX XX-XX» для таблицы.
+def _tg_url(username: Any) -> str | None  # Ссылка на @username только для валидного имени (без javascript:/HTML).
+def _items_by_order(conn: Any, ids: list[int]) -> dict[int, list[dict[str, Any]]]
+def _parse_iso_date(s: str) -> date | None
+def _register_routes(app: Flask) -> None
+def _ensure_instance() -> None
+
+# auth.py [python]
+imports: os, secrets, time, collections.defaultdict, collections.abc.MutableMapping, typing.Any, flask.session, werkzeug.security.check_password_hash, werkzeug.security.generate_password_hash
+def load_or_generate_secret_key(app_dir: str) -> str  # Load SECRET_KEY from env or instance/secret_key file; generate + persist if miss
+def get_admin_credentials(
+    username_override: str | None = None,
+    password_override: str | None = None,
+    password_hash_override: str | None = None,
+) -> tuple[str, str]  # Return (username, password_hash) using env or injected overrides.
+def verify_password(password_hash: str, candidate: str) -> bool  # Constant-time comparison via werkzeug.
+def check_rate_limit(ip: str, max_attempts: int = 5, window_sec: int = 60) -> bool  # Return True if attempt is allowed; False if the IP is over the limit.
+def seconds_until_reset(ip: str, window_sec: int = 60) -> int  # Best-effort guess of seconds remaining in the window for an IP.
+def reset_rate_limit() -> None  # Drop all rate-limit buckets. Used between pytest tests.
+def csrf_token(sess: MutableMapping[str, Any] | None = None) -> str  # Return (and lazily create) the CSRF token for the current session.
+
+# db.py [python]
+imports: os, random, sqlite3, collections.abc.Iterable, datetime.UTC, datetime.datetime, datetime.timedelta, flask
+def _email_local(name: str) -> str  # «Анна Смирнова» -> «anna.smirnova» (латиница для демо-адресов).
+def utcnow() -> datetime  # Return timezone-aware current UTC datetime.
+def reset_memory_conn() -> None  # Drop the in-memory singleton (used by test fixtures between runs).
+def _ensure_parent_dir(path: str) -> None
+def get_db() -> sqlite3.Connection  # Return a per-request connection stored on flask.g.
+def close_db(_exc: BaseException | None = None) -> None  # Teardown handler: close the request-scoped connection if any.
+def migrate(conn: sqlite3.Connection) -> None  # Идемпотентная миграция схемы через PRAGMA user_version.
+def init_db(app: flask.Flask) -> None  # Create schema; seed demo orders only when DEMO_MODE is on (idempotent).
+def seed_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None  # Вставить ~60 заказов за 60 дней с согласованной историей статусов.
+def reset_demo_orders(conn: sqlite3.Connection, rng_seed: int = 42) -> None  # Delete all orders + events, then run the deterministic seed.
+
+# js/admin.js [javascript]
+
+# js/common.js [javascript]
+const $ = (sel, root = document) =>
+const $$ = (sel, root = document) =>
+function setCsrfToken(tok)
+function getCsrfToken()
+class ApiError
+  constructor(status, message, fields)
+function safeNextPath(value)
+function ensureToastContainer()
+function toast(message, variant)
+function setTheme(theme)
+function initTheme()
+function openModal(id)
+function closeModal(id)
+function closeDrawer(id)
+function pageTransition(href)
+function initNav()
+function initReveal()
+function initTilt()
+function initBackToTop()
+function api(path, options = {})
+function injectChrome()
+function bootstrapAuthUI()
+function clearFieldErrors(form)
+function renderFieldErrors(form, fields)
+
+# js/dashboard.js [javascript]
+const relFmt = () =>
+function el(tag, props, children)
+function formatMoney(cents)
+function relativeTime(iso)
+function sourceBadge(src)
+function tgLink(o)
+function badge(status)
+function computeDelta(curr, prev)
+function debounce(fn, wait)
+function stateToQuery()
+function applyStateFromUrl()
+function pushStateToUrl()
+function syncUIFromState()
+function refreshAll()
+function refreshStats()
+function renderKpis(data)
+function themeColors()
+function renderRevenueChart(data)
+function renderStatusChart(data)
+function renderTopProducts(data)
+function refreshActivity()
+function renderActivity(items)
+function refreshTable(refreshCountsToo)
+function setTableLoading()
+function renderTableError(err)
+function renderTable(data)
+function renderPagination(data)
+function refreshChipCounts()
+function changeStatus(id, status)
+function closeAllStatusMenus()
+function askConfirm(title, body, onOk)
+function openOrderDrawer(id)
+function closeOrderDrawer()
+function renderOrderDrawer(order)
+function submitNewOrder(e)
+function exportCsv()
+function resetDemoData()
+function initDashboardUI()
+
+# js/i18n.js [javascript]
+function format(text, params)
+function t(key, params)
+function tn(key, n, params)
+function apiMessage(message)
+function apply(root)
+function setLang(next)
+
+# js/vendor/chart.umd.min.js [javascript]
+
+# scripts/build_icons.py [python]
+imports: argparse, re, sys, pathlib.Path, urllib.parse.quote
+def used_icons() -> list[str]
+def svg_to_data_uri(svg: str) -> str
+def main() -> int
+
+# scripts/screenshots.py [python]
+imports: os, socket, subprocess, sys, tempfile, time, urllib, pathlib.Path, playwright.sync_api.sync_playwright
+def free_port() -> int
+def wait_ready(base: str) -> None
+def main() -> int
+def new_page(browser, base: str, theme: str, width: int, height: int)
+def shoot_theme(browser, base: str, theme: str) -> None
+
+# tests/conftest.py [python]
+imports: collections.abc.Iterator, typing.Any, pytest, werkzeug, auth, db, app.create_app
+def app_context(app)
+def app() -> Iterator[Any]  # Flask app wired to a throwaway :memory: SQLite database.
+def client(app)  # Flask test client for the in-memory app.
+def authed(client) -> tuple[Any, str]  # Client logged in via ``/api/login`` plus the negotiated CSRF token.
+def seed_small(app, app_context)  # Create a tiny, hand-verifiable order fixture.
+
+# tests/test_auth_wall.py [python]
+def test_protected_api_endpoints_return_401_without_session(app, client)  # Enumerate app.url_map and verify /api/* guard (allowlist only).
+def test_dashboard_redirects_anonymous_to_admin(client)
+def test_admin_redirects_authed_to_dashboard(authed)
+
+# tests/test_csp.py [python]
+imports: re
+def _script_src(csp: str) -> str
+def test_csp_header_on_pages_and_api(authed)
+def _pages(app, authed)  # Страница входа (отдельный гостевой клиент) и дашборд администратора.
+def test_pages_have_no_inline_scripts_or_handlers(app, authed)
+def test_csp_allows_no_external_hosts(client)
+def test_chartjs_is_served_locally(authed)
+def test_icons_are_served_locally(app, authed)
+
+# tests/test_csrf.py [python]
+imports: tests.conftest.TEST_PASSWORD
+def _create_order_payload()
+def test_login_is_csrf_exempt(client)  # POST /api/login has no CSRF requirement – user is not authed yet.
+def test_post_orders_without_csrf_returns_403(client)
+def test_patch_order_status_without_csrf_returns_403(authed)
+def test_post_logout_without_csrf_returns_403(authed)
+def test_mutating_request_with_wrong_csrf_value_returns_403(authed)
+def test_integration_token_needs_no_csrf_but_session_post_still_does(authed)  # Токен освобождает только /api/integrations/*; обычные POST по-прежнему требуют C
+
+# tests/test_csv.py [python]
+imports: csv, io
+def _headers(csrf: str) -> dict[str, str]
+def _seed(authed, app)
+def test_csv_bom_is_utf8_byte_order_mark(authed, app)
+def test_csv_header_row_matches_spec(authed, app)
+def test_csv_row_count_matches_filtered_api_total(authed, app)
+def test_csv_formula_prefixes_are_escaped_with_single_quote(authed, app)
+def test_csv_content_disposition_filename_contains_today(authed, app)
+
+# tests/test_demo_mode.py [python]
+imports: os, contextlib.contextmanager, pytest, auth, db, app.create_app
+def _env(**values: str | None)  # Временно выставить переменные окружения (None = удалить).
+def _prod_app(password: str = STRONG_PASSWORD, **extra)
+def _clean()
+def test_healthz_is_public_and_minimal(client)
+def test_healthz_does_not_touch_session(client)
+def test_demo_mode_shows_credentials_and_seeds(client)
+def test_demo_mode_reset_works(authed)
+def test_demo_mode_dashboard_has_reset_button(authed)
+def test_prod_refuses_default_password()
+def test_prod_refuses_empty_password()
+def test_prod_default_is_not_demo()  # Без DEMO_MODE в окружении и в конфиге режим выключен.
+def test_prod_hides_credentials_and_does_not_seed()
+def test_prod_login_works_and_demo_reset_is_404()
+def test_prod_demo_credentials_do_not_log_in()
+def test_hsts_present_when_not_debug(client)
+def test_hsts_absent_in_debug()
+def _fail_logins(client, forwarded: str, n: int) -> list[int]
+def test_without_trust_proxy_xff_is_ignored()
+def test_with_trust_proxy_each_forwarded_ip_has_own_bucket()
+
+# tests/test_i18n.py [python]
+imports: json, re, shutil, subprocess, html.parser.HTMLParser, pathlib.Path, pytest
+def _parse_dicts() -> dict[str, dict[str, str]]
+def _base(key: str) -> str
+class _Collector(HTMLParser)
+  def __init__(self) -> None
+  def handle_starttag(self, tag, attrs)
+  def handle_data(self, data)
+  def handle_endtag(self, tag)
+def _collect(path: str) -> _Collector
+def _used_keys() -> set[str]
+def test_ru_and_en_have_same_keys()
+def test_plural_forms_are_complete()
+def test_placeholders_match_between_languages()
+def test_no_empty_translations()
+def test_every_used_key_exists_in_both_languages()
+def test_no_unused_keys()
+def test_dynamic_keys_for_every_status_exist()
+def test_static_markup_matches_russian_dictionary(page)
+def test_pages_declare_russian_default_and_load_i18n_first(page)
+def test_product_datalist_comes_from_catalogue(authed)
+def test_every_server_message_has_a_translation()
+def test_i18n_runtime_behaviour_in_node()
+
+# tests/test_integrations_auth.py [python]
+imports: pytest, auth, db, app.create_app, tests.conftest.TEST_PASSWORD, tests.conftest.TEST_PASSWORD_HASH
+def _make(token)
+def bot_client()
+def _bearer(t)
+def test_disabled_without_token_returns_404()
+def test_short_token_refuses_to_start()
+def test_no_header_returns_401(bot_client)
+def test_bad_token_returns_401(bot_client, header)
+def test_valid_token_works(bot_client)
+def test_valid_token_unknown_integration_path_is_404(bot_client)
+def test_session_does_not_replace_token(bot_client)
+def test_token_does_not_open_regular_api(bot_client, method, path)
+
+# tests/test_login.py [python]
+imports: tests.conftest.TEST_PASSWORD
+def test_login_success_returns_200_with_csrf(client)
+def test_login_invalid_password_returns_401(client)
+def test_login_rate_limit_six_wrong_attempts_returns_429_then_429(client)  # Five wrong attempts are allowed; sixth (and more) must be 429.
+
+# tests/test_migration.py [python]
+imports: sqlite3, tempfile, pathlib.Path, pytest, db
+def workdir()
+def _old_db(tmp_path)
+def _dump(conn)
+def test_migrate_old_db_keeps_data(workdir)
+def test_migrate_is_idempotent(workdir)
+def test_constraints(workdir)
+def test_items_cascade_on_delete(workdir)
+def test_fresh_db_has_new_schema(app, app_context)
+
+# tests/test_orders_create.py [python]
+imports: pytest
+def _headers(csrf: str) -> dict[str, str]
+def test_create_order_happy_path_201(authed, app)
+def test_create_order_amount_decimal_0_1_plus_0_2_is_exactly_30_cents(authed, app)  # Using Decimal parsing, 0.1 + 0.2 must come out as exactly 30 cents.
+def test_create_order_validation_failures(
+    authed, app, payload_overrides, expected_field, expected_msg_part
+)
+def test_create_order_whitespace_in_name_and_product_is_trimmed(authed, app)
+def test_create_order_optional_omitted_email_is_none(authed, app)
+def test_create_order_empty_email_is_treated_as_none(authed, app)
+
+# tests/test_orders_list.py [python]
+def _headers(csrf: str) -> dict[str, str]
+def _seed(authed, app)  # Create a tiny known corpus via the public API.
+def test_filter_status_paid_returns_only_paid(authed, app)
+def test_filter_search_q_by_customer_name_like(authed, app)
+def test_filter_search_q_by_hash_id(authed, app)  # Both ``1001`` and ``#1001`` should find the order whose id is 1.
+def test_filter_date_from_to_range(authed, app)
+def test_filter_min_max_amount(authed, app)
+def test_sort_unknown_column_returns_422(authed, app)
+def test_pagination_page_2_returns_right_subset(authed, app)
+def test_sql_injection_payload_in_q_is_harmless(authed, app)
+def test_sort_amount_cents_asc_applies(authed, app)
+
+# tests/test_orders_telegram.py [python]
+imports: csv, io, pytest, db
+def _insert(conn, name, source="telegram", username="baker_fan", phone="+79990001122",
+            delivery="2026-10-20", items=(("Медовик, 1 кг", 240000, 2),))
+def tg(authed, app)
+def test_filter_by_source(tg)
+def test_filter_bad_source_422(tg, bad)
+def test_detail_has_items_phone_delivery_link(tg)
+def test_detail_panel_order_has_no_link_and_empty_items(tg)
+def test_list_exposes_source_and_safe_link(tg)
+def test_xss_name_returned_as_json_data_not_html(tg)
+def test_csv_new_columns(tg)
+def test_csv_formula_injection_new_columns(tg)
+def test_csv_source_filter_invalid_422(tg)
+
+# tests/test_orders_transitions.py [python]
+imports: pytest
+def _headers(csrf: str) -> dict[str, str]
+def _make_order(app, status: str) -> int  # Insert an order directly at a given status with a consistent event chain.
+def test_status_transition_matrix(authed, app, current: str, target: str)
+def test_terminal_completed_status_cannot_transition_anywhere(authed, app)
+def test_terminal_cancelled_status_cannot_transition_anywhere(authed, app)
+def test_unknown_status_returns_422_not_409(authed, app)
+
+# tests/test_seed.py [python]
+imports: re, db
+def test_catalogue_has_nine_russian_items_with_stable_prices()
+def test_seeded_orders_use_catalogue_and_cyrillic_names(app, app_context)
+def test_seeded_timestamps_are_never_in_the_future(app, app_context)
+
+# tests/test_static_safety.py [python]
+imports: pytest
+def test_dangerous_urls_respond_404(client, url)
+def test_legacy_dashboard_html_redirects_permanently_to_dashboard(client)
+def test_static_assets_are_served(client)  # Whitelisted asset directories should still respond 200.
+def test_nonexistent_static_asset_returns_404(client)
+def test_root_redirects_to_login_when_anonymous(client)
+def test_root_redirects_to_dashboard_when_logged_in(authed)
+def test_login_page_is_open_and_blog_is_gone(client)
+
+# tests/test_stats.py [python]
+def test_stats_kpi_revenue_matches_hand_computation(authed, seed_small)
+def test_stats_series_has_exactly_days_entries_zero_filled(authed, seed_small)
+def test_stats_kpi_prev_window_is_prior_same_length_period(authed, seed_small, app)  # kpi_prev.orders should be 0 for seed_small (all 5 orders placed in last 3 days).
+def test_stats_by_status_counts_match_fixture(authed, seed_small)
+def test_stats_top_products_contains_dashboard_and_web_app(authed, seed_small)
