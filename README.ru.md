@@ -65,9 +65,9 @@ docker compose up --build
 | `TRUST_PROXY` | `1`: панель за реверс-прокси, IP клиента берётся из `X-Forwarded-For` (для ограничения попыток входа) | `0` |
 | `COOKIE_SECURE` | `0`: не ставить `Secure` на cookie сессии (только для `http://localhost`) | `1` |
 | `LOG_LEVEL` | Уровень логов | `INFO` |
-| `BOT_API_TOKEN` | Токен интеграции с ботом | не задан |
+| `PANEL_API_KEY` | Ключ API интеграции (Bearer) | не задан |
 
-`BOT_API_TOKEN` включает интеграцию с Telegram-ботом (`/api/integrations/*`, заголовок `Authorization: Bearer`). Не задан: эндпоинты отвечают 404. Короче 32 символов: панель не стартует.
+`PANEL_API_KEY` включает интеграцию с Telegram-ботом (`/api/integrations/*`, заголовок `Authorization: Bearer`). Не задан: эндпоинты отвечают 404. Короче 32 символов: панель не стартует.
 
 ## Статусы заказов
 
@@ -118,7 +118,7 @@ docker compose up --build
 | `POST` | `/api/orders` | создать заказ (статус `pending`) |
 | `GET` | `/api/orders/<id>` | заказ с историей статусов |
 | `PATCH` | `/api/orders/<id>/status` | `{"status": "..."}`, проверка правил переходов |
-| `GET` | `/api/orders/export.csv` | CSV с теми же фильтрами; ячейки, начинающиеся с `= + - @`, экранируются |
+| `GET` | `/api/orders/export.csv` | CSV с теми же фильтрами; ячейки, начинающиеся с `= + - @`, экранируются; телефон `+7XXXXXXXXXX` выводится как `+7 (XXX) XXX XX-XX` |
 | `GET` | `/api/stats?days=7\|30\|90` | показатели, выручка по дням, разбивка по статусам, топ-5 позиций |
 | `GET` | `/api/activity?limit=10` | последние смены статусов |
 | `POST` | `/api/demo/reset` | пересоздать демо-данные (только `DEMO_MODE=1`) |
