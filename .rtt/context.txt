@@ -1,4 +1,4 @@
-# rtt index | generated 2026-10-15 15:16 | 27 files | 4262 tokens
+# rtt index | generated 2026-10-16 15:15 | 28 files | 4463 tokens
 # If this looks outdated, ask the user to run: rtt update
 # app.py [python]
 imports: csv, hmac, io, logging, os, re, collections.abc.Callable, datetime.date, datetime.timedelta, decimal.Decimal, decimal.InvalidOperation, decimal.ROUND_HALF_UP, typing.Any, flask.Flask, flask.Response, flask.current_app, flask.jsonify, flask.make_response, flask.redirect, flask.render_template_string, flask.request, flask.send_from_directory, flask.session, werkzeug.exceptions.HTTPException, werkzeug.exceptions.NotFound, werkzeug.middleware.proxy_fix.ProxyFix, auth, auth.DEFAULT_PASSWORD, auth.DEFAULT_USERNAME, auth.check_rate_limit, auth.csrf_token, auth.load_or_generate_secret_key, auth.seconds_until_reset, auth.verify_password
@@ -258,6 +258,30 @@ def test_valid_token_works(bot_client)
 def test_valid_token_unknown_integration_path_is_404(bot_client)
 def test_session_does_not_replace_token(bot_client)
 def test_token_does_not_open_regular_api(bot_client, method, path)
+
+# tests/test_integrations_orders.py [python]
+imports: pytest, auth, db, app.create_app, tests.conftest.TEST_PASSWORD_HASH
+def _app(token=TOKEN)
+def bot()
+def _bearer()
+def _payload(**overrides)
+def test_create_returns_201(bot)
+def test_create_writes_to_db(bot)
+def test_create_multiple_items(bot)
+def test_create_without_optional_fields(bot)
+def test_duplicate_key_returns_200(bot)
+def test_duplicate_key_returns_items(bot)
+def test_missing_idempotency_key_422(bot)
+def test_missing_customer_name_422(bot)
+def test_missing_telegram_user_id_422(bot)
+def test_empty_items_422(bot)
+def test_unknown_product_id_422(bot)
+def test_bad_quantity_422(bot)
+def test_bad_delivery_date_422(bot)
+def test_invalid_telegram_username_422(bot)
+def test_no_auth_401(bot)
+def test_wrong_token_401(bot)
+def test_source_always_telegram(bot)
 
 # tests/test_login.py [python]
 imports: tests.conftest.TEST_PASSWORD

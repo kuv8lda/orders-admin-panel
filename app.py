@@ -52,6 +52,9 @@ from db import (
     utcnow,
 )
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # ---------------------------------------------------------------------------
 # Constants shared across routes
 # ---------------------------------------------------------------------------
@@ -1049,6 +1052,151 @@ def _register_routes(app: Flask) -> None:
             for i, (name, price) in enumerate(PRODUCT_CATALOGUE, start=1)
         ]
         return jsonify(items)
+
+    # ---- POST /api/integrations/orders -------------------------------------
+
+    @app.post("/api/integrations/orders")
+    def i_orders_create() -> Response:
+        idem_key = (request.headers.get("Idempotency-Key") or "").strip()
+        if not idem_key:
+            return _json_validation_errors({"idempotency_key": "Idempotency-Key header is required"})
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        errors: dict[str, str] = {}
+
+        customer_name = (data.get("customer_name") or "").strip()
+        if not (2 <= len(customer_name) <= 80):
+            errors["customer_name"] = "Customer name must be 2-80 characters"
+
+        customer_phone_raw = data.get("customer_phone")
+        customer_phone: str | None = customer_phone_raw.strip() if isinstance(customer_phone_raw, str) else None
+
+        telegram_user_id = data.get("telegram_user_id")
+        if telegram_user_id is None:
+            errors["telegram_user_id"] = "telegram_user_id is required"
+        elif not isinstance(telegram_user_id, int):
+            errors["telegram_user_id"] = "telegram_user_id must be an integer"
+
+        telegram_username_raw = data.get("telegram_username")
+        telegram_username: str | None = telegram_username_raw.strip() if isinstance(telegram_username_raw, str) else None
+        if telegram_username and not TG_USERNAME_RE.match(telegram_username):
+            errors["telegram_username"] = "Invalid telegram_username format"
+
+        delivery_date_raw = data.get("delivery_date")
+        delivery_date: str | None = None
+        if delivery_date_raw is not None:
+            d = _parse_iso_date(str(delivery_date_raw))
+            if d is None:
+                errors["delivery_date"] = "delivery_date must be YYYY-MM-DD"
+            else:
+                delivery_date = d.isoformat()
+
+        note_raw = data.get("note")
+        note: str | None = note_raw.strip() if isinstance(note_raw, str) else None
+        if note is not None and len(note) > 500:
+            errors["note"] = "Note must not exceed 500 characters"
+
+        items_raw = data.get("items")
+        if not isinstance(items_raw, list) or len(items_raw) == 0:
+            errors["items"] = "items must be a non-empty list"
+
+        # Catalogue lookup by product_id
+        catalogue_map: dict[int, tuple[str, int]] = {
+            i: (name, price)
+            for i, (name, price) in enumerate(PRODUCT_CATALOGUE, start=1)
+        }
+
+        parsed_items: list[tuple[str, int, int]] = []  # (product, unit_price_cents, quantity)
+        if "items" not in errors and isinstance(items_raw, list):
+            for idx, item in enumerate(items_raw):
+                if not isinstance(item, dict):
+                    errors[f"items[{idx}]"] = "each item must be an object"
+                    continue
+                pid = item.get("product_id")
+                qty = item.get("quantity")
+                if not isinstance(pid, int) or pid not in catalogue_map:
+                    errors[f"items[{idx}].product_id"] = "unknown product_id"
+                    continue
+                if not isinstance(qty, int) or not (1 <= qty <= 20):
+                    errors[f"items[{idx}].quantity"] = "quantity must be 1-20"
+                    continue
+                name_p, price_p = catalogue_map[pid]
+                parsed_items.append((name_p, price_p, qty))
+
+        if errors:
+            return _json_validation_errors(errors)
+
+        # Compute total from catalogue prices
+        total_cents = sum(price * qty for _, price, qty in parsed_items)
+        if total_cents <= 0:
+            return _json_validation_errors({"items": "total amount must be greater than 0"})
+
+        # Summarised product string for legacy `product` column
+        product_summary = ", ".join(f"{name} x{qty}" for name, _, qty in parsed_items)
+        if len(product_summary) > 80:
+            product_summary = product_summary[:77] + "..."
+
+        conn = get_db()
+
+        # Idempotency: return existing order if key already seen
+        existing = conn.execute(
+            "SELECT * FROM orders WHERE idempotency_key = ?", (idem_key,)
+        ).fetchone()
+        if existing:
+            payload = dict(existing)
+            payload["items"] = _items_by_order(conn, [payload["id"]])[payload["id"]]
+            payload["telegram_url"] = _tg_url(payload.get("telegram_username"))
+            return jsonify(payload), 200
+
+        ts = utcnow().isoformat()
+        try:
+            cur = conn.execute(
+                "INSERT INTO orders (customer_name, customer_phone, product, amount_cents,"
+                " status, note, created_at, updated_at, source, telegram_user_id,"
+                " telegram_username, delivery_date, idempotency_key)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    customer_name, customer_phone, product_summary, total_cents,
+                    "pending", note or None, ts, ts, "telegram",
+                    telegram_user_id, telegram_username or None,
+                    delivery_date, idem_key,
+                ),
+            )
+        except Exception as exc:
+            msg = str(exc)
+            if "UNIQUE constraint" in msg and "idempotency_key" in msg:
+                # Race: re-read and return existing
+                existing = conn.execute(
+                    "SELECT * FROM orders WHERE idempotency_key = ?", (idem_key,)
+                ).fetchone()
+                if existing:
+                    payload = dict(existing)
+                    payload["items"] = _items_by_order(conn, [payload["id"]])[payload["id"]]
+                    payload["telegram_url"] = _tg_url(payload.get("telegram_username"))
+                    return jsonify(payload), 200
+            raise
+
+        order_id = cur.lastrowid
+
+        for name_p, price_p, qty in parsed_items:
+            conn.execute(
+                "INSERT INTO order_items (order_id, product, unit_price_cents, quantity)"
+                " VALUES (?,?,?,?)",
+                (order_id, name_p, price_p, qty),
+            )
+
+        conn.execute(
+            "INSERT INTO order_events (order_id, from_status, to_status, created_at)"
+            " VALUES (?,?,?,?)",
+            (order_id, None, "pending", ts),
+        )
+        conn.commit()
+
+        row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        payload = dict(row)
+        payload["items"] = _items_by_order(conn, [order_id])[order_id]
+        payload["telegram_url"] = _tg_url(payload.get("telegram_username"))
+        return jsonify(payload), 201
 
     # ---- Catch-all: 404 ----------------------------------------------------
 

@@ -19,3 +19,4 @@
 
 - Этап 2.1: PANEL_API_KEY короче 32 символов — отказ запуска (RuntimeError), а не тихое отключение. В 2.1 добавлен только GET /api/integrations/catalog (id = порядковый номер в PRODUCT_CATALOGUE), чтобы тесты токена проверяли рабочий путь.
 - Этап 2.2: UNIQUE для idempotency_key сделан уникальным индексом (SQLite не умеет ADD COLUMN ... UNIQUE); источник проверяется CHECK; пустые ключи не конфликтуют.
+- Этап 2.2 (эндпоинт): POST /api/integrations/orders принимает заказы от бота. Цены считает панель по PRODUCT_CATALOGUE (product_id из каталога). Idempotency-Key обязателен; повторный запрос с тем же ключом возвращает 200 + существующий заказ. source всегда 'telegram'. Позиции сохраняются в order_items. 17 тестов в tests/test_integrations_orders.py.

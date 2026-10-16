@@ -161,6 +161,11 @@
     "api.field.sort_unknown": "Неизвестный столбец сортировки",
     "api.field.invalid_value": "Недопустимое значение: {field}",
     "api.field.invalid": "Некорректное значение",
+    "api.field.tg_user_id_required": "Укажите Telegram user_id",
+    "api.field.tg_user_id_int": "Telegram user_id должен быть числом",
+    "api.field.tg_username_format": "Некорректный формат Telegram username",
+    "api.field.delivery_date_format": "Дата доставки — формат ГГГГ-ММ-ДД",
+    "api.field.items_empty": "Список позиций не должен быть пустым",
   },
   en: {
     "title.admin": "Orders Admin Panel — Sign in",
@@ -315,6 +320,11 @@
     "api.field.sort_unknown": "Unknown sort column",
     "api.field.invalid_value": "Invalid value for {field}",
     "api.field.invalid": "Invalid",
+    "api.field.tg_user_id_required": "telegram_user_id is required",
+    "api.field.tg_user_id_int": "telegram_user_id must be an integer",
+    "api.field.tg_username_format": "Invalid telegram_username format",
+    "api.field.delivery_date_format": "delivery_date must be YYYY-MM-DD",
+    "api.field.items_empty": "items must be a non-empty list",
   },
   };
 
@@ -344,6 +354,11 @@
     "Note must not exceed 500 characters": "api.field.note_len",
     "Unknown status": "api.field.status_unknown",
     "Unknown sort column": "api.field.sort_unknown",
+    "telegram_user_id is required": "api.field.tg_user_id_required",
+    "telegram_user_id must be an integer": "api.field.tg_user_id_int",
+    "Invalid telegram_username format": "api.field.tg_username_format",
+    "delivery_date must be YYYY-MM-DD": "api.field.delivery_date_format",
+    "items must be a non-empty list": "api.field.items_empty",
   };
 
   let lang = "ru";

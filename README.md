@@ -42,6 +42,29 @@ See [`.env.example`](.env.example): `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSW
 
 Endpoint list, error formats, filters and the security notes (deny-by-default `/api/*`, CSRF, CSP, rate limit, HSTS) are described in [README.ru.md](README.ru.md). `GET /healthz` returns `{"status": "ok"}`.
 
+### Bot integration (`/api/integrations/*`)
+
+Requires `PANEL_API_KEY` (≥ 32 chars) and `Authorization: Bearer <key>` header.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/integrations/catalog` | Product catalogue with `id`, `name`, `price_cents` |
+| `POST` | `/api/integrations/orders` | Create order from Telegram bot |
+
+`POST /api/integrations/orders` body:
+```json
+{
+  "customer_name": "Анна",
+  "telegram_user_id": 123456,
+  "telegram_username": "anna_s",
+  "customer_phone": "+79991234567",
+  "delivery_date": "2026-11-01",
+  "note": "Without nuts",
+  "items": [{"product_id": 1, "quantity": 2}]
+}
+```
+Requires `Idempotency-Key` header (UUID). Prices are computed from the catalogue — the bot only sends `product_id` and `quantity`. Returns 201 on creation, 200 on duplicate key, 422 on validation error.
+
 ## Tests
 
 ```bash
