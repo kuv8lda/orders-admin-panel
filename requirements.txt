@@ -1,0 +1,4 @@
+Flask>=3,<4
+Werkzeug>=3,<4
+gunicorn>=22,<24
+dotenv

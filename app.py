@@ -1,0 +1,1343 @@
+"""Flask application factory and all HTTP routes.
+
+Public:
+    create_app(config=None) -> Flask
+Run directly:
+    python app.py  # starts Werkzeug dev server on 127.0.0.1:5000
+"""
+from __future__ import annotations
+
+import csv
+import hmac
+import io
+import logging
+import os
+import re
+from collections.abc import Callable
+from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from typing import Any
+
+from flask import (
+    Flask,
+    Response,
+    current_app,
+    jsonify,
+    make_response,
+    redirect,
+    render_template_string,
+    request,
+    send_from_directory,
+    session,
+)
+from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+import auth as auth_mod
+from auth import (
+    DEFAULT_PASSWORD,
+    DEFAULT_USERNAME,
+    check_rate_limit,
+    csrf_token,
+    load_or_generate_secret_key,
+    seconds_until_reset,
+    verify_password,
+)
+from db import (
+    close_db,
+    get_db,
+    init_db,
+    reset_demo_orders,
+    utcnow,
+)
+
+from products import active_products
+
+from dotenv import load_dotenv
+load_dotenv()
+
+# ---------------------------------------------------------------------------
+# Constants shared across routes
+# ---------------------------------------------------------------------------
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+log = logging.getLogger("orders")
+
+_FALSE_VALUES = frozenset(("", "0", "false", "off", "no"))
+
+
+def _env_flag(name: str, default: str = "0") -> bool:
+    return os.environ.get(name, default).strip().lower() not in _FALSE_VALUES
+
+
+def _configure_logging() -> None:
+    level_name = os.environ.get("LOG_LEVEL", "INFO").strip().upper()
+    level = getattr(logging, level_name, logging.INFO)
+    if not isinstance(level, int):
+        level = logging.INFO
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        )
+    log.setLevel(level)
+
+API_ALLOWLIST_NO_AUTH: set[tuple[str, str]] = {
+    ("POST", "/api/login"),
+    ("GET", "/api/me"),
+}
+
+INTEGRATIONS_PREFIX = "/api/integrations"
+PANEL_API_KEY_MIN_LEN = 32
+
+CSRF_EXEMPT: set[tuple[str, str]] = {
+    ("POST", "/api/login"),
+}
+
+STATUS_VALUES: frozenset[str] = frozenset(
+    ("pending", "paid", "shipped", "completed", "cancelled")
+)
+REVENUE_STATUSES: frozenset[str] = frozenset(("paid", "shipped", "completed"))
+
+STATUS_TRANSITIONS: dict[str, tuple[str, ...]] = {
+    "pending": ("paid", "cancelled"),
+    "paid": ("shipped", "cancelled"),
+    "shipped": ("completed",),
+    "completed": (),
+    "cancelled": (),
+}
+
+ORDER_SORT_WHITELIST: frozenset[str] = frozenset(
+    ("id", "customer_name", "product", "amount_cents", "status", "created_at")
+)
+
+# Все скрипты, стили и иконки отдаются с того же origin (js/vendor, css/vendor).
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self'",
+        "img-src 'self' data:",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    )
+)
+
+STATIC_FILES_DENYLIST = frozenset(
+    (".py", ".db", ".txt", ".env", ".md", ".xz")
+)
+
+ORDER_SOURCES: frozenset[str] = frozenset(("panel", "telegram"))
+TG_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{5,32}$")
+PHONE_RE = re.compile(r"\+7(\d{3})(\d{3})(\d{2})(\d{2})", re.ASCII)
+
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
+CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\n", "\r")
+
+NOT_FOUND_BODY = """
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>404 Not Found</title></head>
+<body style="font-family:system-ui;padding:48px"><h1>404</h1><p>Page not found.</p>
+<a href="/" style="color:#4f46e5">Go home</a></body></html>
+"""
+
+
+class JsonApiError(HTTPException):
+    """Raised to return a JSON error response with a specific HTTP status.
+
+    code/description are inherited by werkzeug rendering machinery; our
+    error handler always re-serialises the ``body`` attribute as JSON.
+    """
+
+    def __init__(
+        self,
+        status: int,
+        message: str,
+        fields: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__()
+        self.code = status
+        self.body: dict[str, Any] = {"error": message}
+        if fields:
+            self.body["errors"] = fields
+        self.response: Response | None = None  # type: ignore[assignment]
+
+
+def _raise(status: int, message: str, fields: dict[str, str] | None = None) -> None:
+    """Unconditionally raise a JsonApiError."""
+    raise JsonApiError(status, message, fields)
+
+# ---------------------------------------------------------------------------
+# Factory
+# ---------------------------------------------------------------------------
+
+
+def create_app(config: dict[str, Any] | None = None) -> Flask:
+    """Create a configured Flask application.
+
+    ``config`` overrides are applied last and can be used by tests to force
+    ``DATABASE_PATH=':memory:'``, ``TESTING=True``, a fixed ``SECRET_KEY``,
+    or a pre-computed ``ADMIN_PASSWORD_HASH``.
+    """
+    _configure_logging()
+    app = Flask(__name__, static_folder=None)
+    instance_path = config.pop("INSTANCE_PATH", None) if config else None
+    if instance_path:
+        app.instance_path = instance_path
+
+    secret_from_env = os.environ.get("SECRET_KEY", "").strip()
+    if secret_from_env:
+        app.config["SECRET_KEY"] = secret_from_env
+    elif not app.config.get("SECRET_KEY"):
+        app.config["SECRET_KEY"] = load_or_generate_secret_key(ROOT)
+
+    if not app.config.get("DATABASE_PATH"):
+        app.config["DATABASE_PATH"] = os.path.join(ROOT, "instance", "app.db")
+    if "DEBUG" not in app.config or app.config["DEBUG"] is None:
+        app.config["DEBUG"] = os.environ.get("FLASK_DEBUG", "0").strip() not in {"0", "", "false", "off"}
+    if not app.config.get("ADMIN_USERNAME"):
+        app.config["ADMIN_USERNAME"] = DEFAULT_USERNAME
+    if "ADMIN_PASSWORD_HASH" not in app.config:
+        app.config["ADMIN_PASSWORD_HASH"] = None
+
+    env_db = os.environ.get("DATABASE_PATH", "").strip()
+    if env_db and not (config and "DATABASE_PATH" in config):
+        if not os.path.isabs(env_db):
+            env_db = os.path.join(ROOT, env_db)
+        app.config["DATABASE_PATH"] = env_db
+
+    if config:
+        for key, value in config.items():
+            app.config[key] = value
+
+    if "DEMO_MODE" not in app.config:
+        app.config["DEMO_MODE"] = _env_flag("DEMO_MODE", "1")
+    app.config["DEMO_MODE"] = bool(app.config["DEMO_MODE"])
+    if "TRUST_PROXY" not in app.config:
+        app.config["TRUST_PROXY"] = _env_flag("TRUST_PROXY")
+
+    app.config.setdefault("COMPETITOR_SOURCE_URL", os.environ.get(
+        "COMPETITOR_SOURCE_URL", "http://127.0.0.1:5001"
+    ))
+    if "PANEL_API_KEY" not in app.config:
+        app.config["PANEL_API_KEY"] = os.environ.get("PANEL_API_KEY", "").strip() or None
+    api_key = app.config["PANEL_API_KEY"]
+    if api_key and len(api_key) < PANEL_API_KEY_MIN_LEN:
+        raise RuntimeError(f"PANEL_API_KEY: минимум {PANEL_API_KEY_MIN_LEN} символов.")
+    app.config["PANEL_API_KEY"] = api_key or None
+
+    username_env = os.environ.get("ADMIN_USERNAME") or None
+    password_env = os.environ.get("ADMIN_PASSWORD") or None
+    if app.config["DEMO_MODE"]:
+        # Public demo credentials must not depend on old deployment secrets.
+        u, h = auth_mod.get_admin_credentials(
+            username_override=DEFAULT_USERNAME,
+            password_override=DEFAULT_PASSWORD,
+        )
+    else:
+        if not app.config.get("ADMIN_PASSWORD_HASH"):
+            _require_real_password(password_env)
+        u, h = auth_mod.get_admin_credentials(
+            username_override=username_env,
+            password_override=password_env,
+            password_hash_override=app.config.get("ADMIN_PASSWORD_HASH"),
+        )
+    app.config["ADMIN_USERNAME"] = u
+    app.config["ADMIN_PASSWORD_HASH"] = h
+    app.config["DEMO_PASSWORD"] = DEFAULT_PASSWORD if app.config["DEMO_MODE"] else None
+    app.secret_key = app.config["SECRET_KEY"]
+
+    if app.config["TRUST_PROXY"]:
+        # Один доверенный реверс-прокси: берём последний адрес из X-Forwarded-For.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)  # type: ignore[method-assign]
+
+    _configure_session_cookie(app)
+
+    app.teardown_appcontext(close_db)
+    app.before_request(_before_request_guard)
+    app.after_request(_after_security_headers)
+
+    from competitors import bp as competitors_bp
+    app.register_blueprint(competitors_bp)
+    from products import bp as products_bp
+    app.register_blueprint(products_bp)
+    _register_routes(app)
+
+    init_db(app)
+    log.info(
+        "app ready: demo_mode=%s trust_proxy=%s integrations=%s",
+        app.config["DEMO_MODE"],
+        app.config["TRUST_PROXY"],
+        "on" if app.config.get("PANEL_API_KEY") else "off",
+    )
+    return app
+
+
+def _require_real_password(password: str | None) -> None:
+    """Вне демо-режима не стартуем с пустым или паролем по умолчанию."""
+    if not password or password == DEFAULT_PASSWORD:
+        raise RuntimeError(
+            "DEMO_MODE=0: задайте ADMIN_PASSWORD (не пустой и не '"
+            + DEFAULT_PASSWORD
+            + "'). Для публичного демо запустите с DEMO_MODE=1."
+        )
+
+
+def _configure_session_cookie(app: Flask) -> None:
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=(
+            not app.config.get("DEBUG", False)
+            and _env_flag("COOKIE_SECURE", "0" if app.config["DEMO_MODE"] else "1")
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Request guards
+# ---------------------------------------------------------------------------
+
+
+def _before_request_guard() -> Response | None:
+    path = request.path
+    method = request.method
+    endpoint_key = (method, path)
+
+    if (method == "POST" and path == "/api/competitor/prices") or (
+        path == INTEGRATIONS_PREFIX or path.startswith(INTEGRATIONS_PREFIX + "/")
+    ):
+        return _integration_guard()
+
+    if path.startswith("/api/"):
+        if endpoint_key not in API_ALLOWLIST_NO_AUTH:
+            if not session.get("admin"):
+                return _json_error("unauthorized", 401)
+        admin_session = bool(session.get("admin"))
+        if (
+            method in {"POST", "PATCH", "DELETE"}
+            and endpoint_key not in CSRF_EXEMPT
+            and admin_session
+        ):
+            expected = session.get("csrf_token") or ""
+            provided = request.headers.get("X-CSRF-Token") or ""
+            if not expected or not provided or expected != provided:
+                return _json_error("csrf", 403)
+    return None
+
+
+def _integration_guard() -> Response | None:
+    """Интеграция с ботом: выключена без токена; иначе нужен валидный Bearer.
+
+    Валидный токен заменяет сессию и CSRF только для этого префикса.
+    Сессия администратора здесь не засчитывается.
+    """
+    token = current_app.config.get("PANEL_API_KEY")
+    if not token:
+        return jsonify({"error": "not_found"}), 404
+    header = request.headers.get("Authorization") or ""
+    scheme, _, candidate = header.partition(" ")
+    if scheme.lower() != "bearer" or not candidate:
+        return _json_error("unauthorized", 401)
+    if not hmac.compare_digest(candidate.strip().encode("utf-8"), token.encode("utf-8")):
+        return _json_error("unauthorized", 401)
+    return None
+
+
+def _after_security_headers(response: Response) -> Response:
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+    if not current_app.config.get("DEBUG", False):
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    path = request.path
+    if path == "/dashboard" or path.startswith("/api/") or path == "/healthz":
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _json_error(message: str, status: int, fields: dict[str, str] | None = None) -> Response:
+    body: dict[str, Any] = {"error": message}
+    if fields:
+        body["errors"] = fields
+    return jsonify(body), status
+
+
+def _json_validation_errors(fields: dict[str, str]) -> Response:
+    return _json_error("validation_failed", 422, fields)
+
+
+def _is_authed() -> bool:
+    return bool(session.get("admin"))
+
+
+def _admin_only() -> None:
+    if not _is_authed():
+        _raise(401, "unauthorized")
+
+
+def _page_or_json_404() -> Response:
+    accept = request.headers.get("Accept", "")
+    if "application/json" in accept:
+        return jsonify({"error": "not_found"}), 404
+    return make_response(render_template_string(NOT_FOUND_BODY), 404)
+
+
+def _is_path_denied(path: str) -> bool:
+    normalized_path = os.path.normpath(path).lstrip("/\\")
+    if normalized_path.startswith("..") or os.path.isabs(normalized_path):
+        return True
+    _, ext = os.path.splitext(normalized_path)
+    if ext in STATIC_FILES_DENYLIST:
+        return True
+    return False
+
+
+def _send_static(subdir: str, path: str) -> Response:
+    if _is_path_denied(path):
+        return _page_or_json_404()
+    # Explicitly deny instance/app.db
+    if subdir == "instance" and path == "app.db":
+        return _page_or_json_404()
+    full_dir = os.path.join(ROOT, subdir)
+    try:
+        return send_from_directory(full_dir, path)
+    except NotFound:
+        return _page_or_json_404()
+
+
+
+
+
+def _render_page(name: str) -> str:
+    with open(os.path.join(ROOT, name), "r", encoding="utf-8") as fh:
+        source = fh.read()
+    return render_template_string(
+        source,
+        demo_mode=bool(current_app.config["DEMO_MODE"]),
+        demo_username=current_app.config["ADMIN_USERNAME"],
+        demo_password=current_app.config["DEMO_PASSWORD"],
+        product_names=[p["name"] for p in active_products()],
+    )
+
+
+def _validate_email(value: str) -> bool:
+    if not 3 <= len(value) <= 200:
+        return False
+    return bool(EMAIL_RE.match(value.strip()))
+
+
+def _parse_amount_to_cents(raw: Any) -> tuple[int | None, str | None]:
+    """Parse a user-supplied amount (string/number) into integer kopecks (RUB cents).
+
+    Returns (cents, error_message). cents is None on error.
+    Tolerates floating-point representation artifacts such as 0.1+0.2
+    being serialized as 0.30000000000000004 by rounding to 2 decimals first
+    and accepting the result if the round-trip error is below 1e-9.
+    """
+    if raw is None:
+        return None, "Amount is required"
+    try:
+        d = Decimal(str(raw))
+    except (InvalidOperation, ValueError, TypeError):
+        return None, "Amount must be a number"
+    if d.is_nan() or d.is_infinite():
+        return None, "Amount must be a number"
+    eps = Decimal("1e-9")
+    quantized = d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    sign, digits, exponent = d.as_tuple()
+    raw_fraction_digits = max(0, -exponent)
+    if raw_fraction_digits > 2 and abs(d - quantized) > eps:
+        return None, "Amount supports at most 2 decimal places"
+    cents_decimal = (quantized * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    cents = int(cents_decimal)
+    if cents <= 0:
+        return None, "Amount must be greater than 0"
+    if cents > 100_000_000:
+        return None, "Amount must not exceed 1,000,000.00"
+    return cents, None
+
+
+def _escape_like(q: str) -> str:
+    out = []
+    for ch in q:
+        if ch in {"\\", "%", "_"}:
+            out.append("\\" + ch)
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _csv_safe(value: object) -> str:
+    s = "" if value is None else str(value)
+    if s and s[0] in CSV_FORMULA_PREFIXES:
+        return "'" + s
+    return s
+
+
+def _csv_phone(value: object) -> str:
+    """Телефон +7XXXXXXXXXX -> «+7 (XXX) XXX XX-XX» для таблицы.
+
+    Строка состоит только из цифр, пробелов, скобок и тире, формулу в неё не
+    вставить. Но она начинается с «+», и Excel принял бы её за формулу, поэтому
+    в начало ставится табуляция: ячейка читается как текст. Всё, что не
+    подходит под формат, идёт через обычное экранирование.
+    """
+    s = "" if value is None else str(value)
+    m = PHONE_RE.fullmatch(s)
+    if not m:
+        return _csv_safe(s)
+    a, b, c, d = m.groups()
+    return f"\t+7 ({a}) {b} {c}-{d}"
+
+
+def _tg_url(username: Any) -> str | None:
+    """Ссылка на @username только для валидного имени (без javascript:/HTML)."""
+    if isinstance(username, str) and TG_USERNAME_RE.match(username):
+        return f"https://t.me/{username}"
+    return None
+
+
+def _items_by_order(conn: Any, ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    out: dict[int, list[dict[str, Any]]] = {i: [] for i in ids}
+    for k in range(0, len(ids), 500):
+        chunk = ids[k:k + 500]
+        marks = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            "SELECT order_id, product, unit_price_cents, quantity FROM order_items"
+            f" WHERE order_id IN ({marks}) ORDER BY id",
+            chunk,
+        ).fetchall()
+        for r in rows:
+            out[r["order_id"]].append({
+                "product": r["product"],
+                "unit_price_cents": r["unit_price_cents"],
+                "quantity": r["quantity"],
+            })
+    return out
+
+
+def _order_payload(conn: Any, row: Any) -> dict[str, Any]:
+    payload = dict(row)
+    payload["items"] = _items_by_order(conn, [payload["id"]])[payload["id"]]
+    payload["telegram_url"] = _tg_url(payload.get("telegram_username"))
+    return payload
+
+
+def _parse_iso_date(s: str) -> date | None:
+    try:
+        return date.fromisoformat(s[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Route registration
+# ---------------------------------------------------------------------------
+
+
+def _register_routes(app: Flask) -> None:
+    get: Callable[..., Any] = app.get
+    post: Callable[..., Any] = app.post
+    patch: Callable[..., Any] = app.patch
+
+    # ---- Pages -------------------------------------------------------------
+
+    @get("/")
+    def p_home() -> Response:
+        return redirect("/dashboard" if _is_authed() else "/admin", code=302)
+
+    @get("/admin")
+    def p_admin() -> Response:
+        if _is_authed():
+            return redirect("/dashboard", code=302)
+        return make_response(_render_page("admin.html"))
+
+    @get("/dashboard")
+    def p_dashboard() -> Response:
+        if not _is_authed():
+            next_url = "/dashboard"
+            return redirect(f"/admin?next={next_url}", code=302)
+        return make_response(_render_page("dashboard.html"))
+
+    @get("/dashboard.html")
+    def p_dashboard_legacy() -> Response:
+        return redirect("/dashboard", code=301)
+
+    @get("/healthz")
+    def p_healthz() -> Response:
+        return jsonify({"status": "ok"})
+
+    # ---- Static assets (whitelisted directories) --------------------------
+
+    @get("/css/<path:path>")
+    def s_css(path: str) -> Response:
+        return _send_static("css", path)
+
+    @get("/js/<path:path>")
+    def s_js(path: str) -> Response:
+        return _send_static("js", path)
+
+    @get("/img/<path:path>")
+    def s_img(path: str) -> Response:
+        return _send_static("img", path)
+
+    # ---- Public API --------------------------------------------------------
+
+    @post("/api/login")
+    def a_login() -> Response:
+        remote = request.remote_addr or "unknown"
+        if not check_rate_limit(remote, max_attempts=5, window_sec=60):
+            log.warning("login rate limited ip=%s", remote)
+            wait = seconds_until_reset(remote, 60)
+            return (
+                jsonify(
+                    {
+                        "error": "too_many_attempts",
+                        "retry_after_seconds": wait,
+                    }
+                ),
+                429,
+            )
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+        expected_user = app.config["ADMIN_USERNAME"]
+        expected_hash = app.config["ADMIN_PASSWORD_HASH"]
+        ok_user = username == expected_user
+        ok_pass = verify_password(expected_hash, password)
+        if not (ok_user and ok_pass):
+            log.warning("login failed ip=%s", remote)
+            return jsonify({"error": "invalid_credentials"}), 401
+        log.info("login ok ip=%s", remote)
+        session.clear()
+        session["admin"] = True
+        token = csrf_token()
+        return (
+            jsonify(
+                {
+                    "ok": True,
+                    "csrf_token": token,
+                    "user": {"username": expected_user},
+                }
+            ),
+            200,
+        )
+
+    @get("/api/me")
+    def a_me() -> Response:
+        authed = _is_authed()
+        token = csrf_token() if authed else session.get("csrf_token")
+        username = app.config["ADMIN_USERNAME"] if authed else None
+        return jsonify(
+            {
+                "admin": authed,
+                "csrf_token": token,
+                "username": username,
+            }
+        )
+
+    @post("/api/logout")
+    def a_logout() -> Response:
+        _admin_only()
+        session.clear()
+        return jsonify({"ok": True})
+
+    # ---- Orders API --------------------------------------------------------
+
+    def _orders_where(params: dict[str, Any]) -> tuple[list[str], list[Any]]:
+        clauses: list[str] = []
+        values: list[Any] = []
+        status = (request.args.get("status") or "").strip()
+        if status:
+            if status not in STATUS_VALUES:
+                raise ValueError("status")
+            clauses.append("status = ?")
+            values.append(status)
+        source = (request.args.get("source") or "").strip()
+        if source:
+            if source not in ORDER_SOURCES:
+                raise ValueError("source")
+            clauses.append("source = ?")
+            values.append(source)
+        q = (request.args.get("q") or "").strip()
+        if q:
+            like = f"%{_escape_like(q)}%"
+            numeric_q = q.lstrip("#")
+            numeric_id: int | None = None
+            if numeric_q.isdigit():
+                try:
+                    numeric_id = int(numeric_q) - 1000
+                    if numeric_id <= 0:
+                        numeric_id = None
+                except (TypeError, ValueError):
+                    numeric_id = None
+            if numeric_id is not None:
+                clauses.append(
+                    "(customer_name LIKE ? ESCAPE '\\'"
+                    " OR customer_email LIKE ? ESCAPE '\\'"
+                    " OR product LIKE ? ESCAPE '\\'"
+                    " OR id = ?)"
+                )
+                values.extend([like, like, like, numeric_id])
+            else:
+                clauses.append(
+                    "(customer_name LIKE ? ESCAPE '\\'"
+                    " OR customer_email LIKE ? ESCAPE '\\'"
+                    " OR product LIKE ? ESCAPE '\\')"
+                )
+                values.extend([like, like, like])
+        date_from = _parse_iso_date(request.args.get("date_from") or "")
+        if date_from:
+            clauses.append("DATE(created_at) >= DATE(?)")
+            values.append(date_from.isoformat())
+        date_to = _parse_iso_date(request.args.get("date_to") or "")
+        if date_to:
+            clauses.append("DATE(created_at) <= DATE(?)")
+            values.append(date_to.isoformat())
+        min_cents, err = _parse_amount_to_cents(request.args.get("min_amount") or None)
+        if request.args.get("min_amount") is not None and request.args.get("min_amount") != "":
+            if err:
+                raise ValueError("min_amount")
+            clauses.append("amount_cents >= ?")
+            values.append(min_cents)
+        max_cents, err = _parse_amount_to_cents(request.args.get("max_amount") or None)
+        if request.args.get("max_amount") is not None and request.args.get("max_amount") != "":
+            if err:
+                raise ValueError("max_amount")
+            clauses.append("amount_cents <= ?")
+            values.append(max_cents)
+        return clauses, values
+
+    def _orders_query_with_filters(
+        paginate: bool = True,
+    ) -> tuple[list[dict[str, Any]], int, int, int, int]:
+        args: dict[str, Any] = {}
+        try:
+            clauses, values = _orders_where(args)
+        except ValueError as exc:
+            field = exc.args[0] if exc.args else "filter"
+            _raise(422, "validation_failed", {field: f"Invalid value for {field}"})
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+
+        sort = (request.args.get("sort") or "created_at").strip() or "created_at"
+        if sort not in ORDER_SORT_WHITELIST:
+            _raise(422, "validation_failed", {"sort": "Unknown sort column"})
+        dir_raw = (request.args.get("dir") or "desc").strip().lower()
+        direction = "DESC" if dir_raw == "desc" else "ASC"
+
+        conn = get_db()
+        total = conn.execute(
+            f"SELECT COUNT(*) AS c FROM orders {where}", values
+        ).fetchone()["c"]
+
+        page_raw = request.args.get("page")
+        per_raw = request.args.get("per_page")
+        try:
+            page = max(1, int(page_raw)) if page_raw else 1
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            per_page = max(1, int(per_raw)) if per_raw else 10
+        except (TypeError, ValueError):
+            per_page = 10
+        per_page = min(per_page, 100)
+        pages = (total + per_page - 1) // per_page if total else 1
+
+        sql = (
+            f"SELECT * FROM orders {where}"
+            f" ORDER BY {sort} {direction}"
+        )
+        if paginate:
+            sql += " LIMIT ? OFFSET ?"
+            values = list(values) + [per_page, (page - 1) * per_page]
+        rows = conn.execute(sql, values).fetchall()
+        items = [dict(r) for r in rows]
+        for it in items:
+            it["telegram_url"] = _tg_url(it.get("telegram_username"))
+        return items, total, page, per_page, pages
+
+    @get("/api/orders")
+    def a_orders_list() -> Response:
+        _admin_only()
+        items, total, page, per_page, pages = _orders_query_with_filters(paginate=True)
+        return jsonify(
+            {
+                "items": items,
+                "total": total,
+                "page": page,
+                "per_page": per_page,
+                "pages": pages,
+            }
+        )
+
+    @get("/api/orders/counts")
+    def a_orders_counts() -> Response:
+        _admin_only()
+        try:
+            clauses, values = _orders_where({})
+        except ValueError as exc:
+            field = exc.args[0] if exc.args else "filter"
+            return _json_validation_errors({field: f"Invalid value for {field}"})
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = get_db().execute(
+            f"SELECT status, COUNT(*) AS c FROM orders {where} GROUP BY status", values
+        ).fetchall()
+        by_status = {status: 0 for status in STATUS_VALUES}
+        total = 0
+        for row in rows:
+            by_status[row["status"]] = int(row["c"])
+            total += int(row["c"])
+        return jsonify({"by_status": by_status, "total": total})
+
+    @post("/api/orders")
+    def a_orders_create() -> Response:
+        _admin_only()
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        errors: dict[str, str] = {}
+        customer_name = (data.get("customer_name") or "").strip()
+        customer_email = (data.get("customer_email") or "").strip() or None
+        product = (data.get("product") or "").strip()
+        amount_raw = data.get("amount")
+        note_raw = data.get("note") or None
+        note = note_raw.strip() if isinstance(note_raw, str) else None
+
+        if not (2 <= len(customer_name) <= 80):
+            errors["customer_name"] = "Customer name must be 2-80 characters"
+        if customer_email and not _validate_email(customer_email):
+            errors["customer_email"] = "Email is invalid"
+        if not (2 <= len(product) <= 80):
+            errors["product"] = "Product must be 2-80 characters"
+        cents, amount_err = _parse_amount_to_cents(amount_raw)
+        if amount_err:
+            errors["amount"] = amount_err
+        if note is not None and len(note) > 500:
+            errors["note"] = "Note must not exceed 500 characters"
+        if errors:
+            return _json_validation_errors(errors)
+
+        conn = get_db()
+        ts = utcnow().isoformat()
+        cur = conn.execute(
+            "INSERT INTO orders (customer_name, customer_email, product, amount_cents,"
+            " status, note, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+            (customer_name, customer_email, product, cents, "pending", note or None, ts, ts),
+        )
+        order_id = cur.lastrowid
+        conn.execute(
+            "INSERT INTO order_events (order_id, from_status, to_status, created_at)"
+            " VALUES (?,?,?,?)",
+            (order_id, None, "pending", ts),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        return jsonify(dict(row)), 201
+
+    @get("/api/orders/<int:order_id>")
+    def a_orders_get(order_id: int) -> Response:
+        _admin_only()
+        conn = get_db()
+        row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "not_found"}), 404
+        events = conn.execute(
+            "SELECT * FROM order_events WHERE order_id = ? ORDER BY id ASC",
+            (order_id,),
+        ).fetchall()
+        payload = dict(row)
+        payload["events"] = [dict(e) for e in events]
+        payload["items"] = _items_by_order(conn, [order_id])[order_id]
+        payload["telegram_url"] = _tg_url(payload.get("telegram_username"))
+        return jsonify(payload)
+
+    def _transition_order(order_id: int, target: str) -> Response:
+        """Общая FSM-логика смены статуса (панель и интеграция с ботом)."""
+        conn = get_db()
+        row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "not_found"}), 404
+        current = row["status"]
+        if target not in STATUS_TRANSITIONS.get(current, ()):
+            return jsonify({"error": "invalid_transition",
+                            "from": current, "to": target}), 409
+        ts = utcnow().isoformat()
+        conn.execute(
+            "UPDATE orders SET status = ?, updated_at = ? WHERE id = ?",
+            (target, ts, order_id),
+        )
+        conn.execute(
+            "INSERT INTO order_events (order_id, from_status, to_status, created_at)"
+            " VALUES (?,?,?,?)",
+            (order_id, current, target, ts),
+        )
+        conn.commit()
+        updated = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        return jsonify(dict(updated))
+
+    @patch("/api/orders/<int:order_id>/status")
+    def a_orders_status(order_id: int) -> Response:
+        _admin_only()
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        target = (data.get("status") or "").strip()
+        if target not in STATUS_VALUES:
+            return _json_validation_errors({"status": "Unknown status"})
+        return _transition_order(order_id, target)
+
+    @get("/api/orders/export.csv")
+    def a_orders_export() -> Response:
+        _admin_only()
+        items, *_ = _orders_query_with_filters(paginate=False)
+        buf = io.StringIO()
+        writer = csv.writer(buf, lineterminator="\n", quoting=csv.QUOTE_MINIMAL)
+        writer.writerow([
+            "ID", "Customer", "Email", "Product", "Amount", "Status", "Created", "Updated",
+            "source", "customer_phone", "delivery_date", "items",
+        ])
+        items_map = _items_by_order(get_db(), [r["id"] for r in items])
+        for row in items:
+            cents = row["amount_cents"] or 0
+            amount_str = f"{(Decimal(cents) / Decimal('100')).quantize(Decimal('0.01'))}"
+            writer.writerow([
+                _csv_safe(f"#{row['id'] + 1000}"),
+                _csv_safe(row["customer_name"]),
+                _csv_safe(row["customer_email"] or ""),
+                _csv_safe(row["product"]),
+                _csv_safe(amount_str),
+                _csv_safe(row["status"]),
+                _csv_safe(row["created_at"]),
+                _csv_safe(row["updated_at"]),
+                _csv_safe(row["source"]),
+                _csv_phone(row["customer_phone"]),
+                _csv_safe(row["delivery_date"] or ""),
+                _csv_safe("; ".join(
+                    f"{i['product']} x{i['quantity']}" for i in items_map[row["id"]]
+                )),
+            ])
+        csv_body = buf.getvalue()
+        today = utcnow().date().isoformat()
+        payload = "\ufeff" + csv_body
+        resp = make_response(payload)
+        resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+        resp.headers["Content-Disposition"] = (
+            f'attachment; filename="orders_{today}.csv"'
+        )
+        return resp
+
+    # ---- Stats & activity --------------------------------------------------
+
+    @get("/api/stats")
+    def a_stats() -> Response:
+        _admin_only()
+        try:
+            days = int(request.args.get("days") or 30)
+        except (TypeError, ValueError):
+            days = 30
+        if days not in {7, 30, 90}:
+            days = 30
+        today = utcnow().date()
+        window_start = today - timedelta(days=days - 1)
+        prev_start = window_start - timedelta(days=days)
+        prev_end = window_start - timedelta(days=1)
+
+        def _compute(start: date, end: date) -> dict[str, Any]:
+            clauses = ["DATE(created_at) BETWEEN DATE(?) AND DATE(?)"]
+            params: list[Any] = [start.isoformat(), end.isoformat()]
+            where = "WHERE " + " AND ".join(clauses)
+            conn = get_db()
+            rev_row = conn.execute(
+                f"SELECT COALESCE(SUM(amount_cents),0) AS s,"
+                f" COUNT(*) AS c"
+                f" FROM orders {where} AND status IN (?,?,?)",
+                params + ["paid", "shipped", "completed"],
+            ).fetchone()
+            revenue_cents = int(rev_row["s"])
+            revenue_count = int(rev_row["c"])
+            orders_row = conn.execute(
+                f"SELECT COUNT(*) AS c FROM orders {where}", params
+            ).fetchone()
+            orders_count = int(orders_row["c"])
+            avg = (revenue_cents // revenue_count) if revenue_count else 0
+            by_status_rows = conn.execute(
+                f"SELECT status, COUNT(*) AS c FROM orders {where}"
+                f" GROUP BY status", params
+            ).fetchall()
+            by_status: dict[str, int] = {s: 0 for s in STATUS_VALUES}
+            for r in by_status_rows:
+                by_status[r["status"]] = int(r["c"])
+            top_rows = conn.execute(
+                f"SELECT product, COALESCE(SUM(amount_cents),0) AS s, COUNT(*) AS c"
+                f" FROM orders {where} AND status IN (?,?,?)"
+                f" GROUP BY product ORDER BY s DESC LIMIT 5",
+                params + ["paid", "shipped", "completed"],
+            ).fetchall()
+            top_products = [
+                {"product": r["product"],
+                 "revenue_cents": int(r["s"]),
+                 "orders": int(r["c"])}
+                for r in top_rows
+            ]
+            series_rows = conn.execute(
+                f"SELECT DATE(created_at) AS d,"
+                f" COALESCE(SUM(CASE WHEN status IN (?,?,?) THEN amount_cents ELSE 0 END),0) AS s,"
+                f" COUNT(*) AS c"
+                f" FROM orders {where}"
+                f" GROUP BY DATE(created_at)",
+                ["paid", "shipped", "completed"] + params,
+            ).fetchall()
+            series_map: dict[str, tuple[int, int]] = {
+                r["d"]: (int(r["s"]), int(r["c"])) for r in series_rows
+            }
+            series: list[dict[str, Any]] = []
+            cursor = start
+            while cursor <= end:
+                key = cursor.isoformat()
+                s, c = series_map.get(key, (0, 0))
+                series.append({"date": key, "revenue_cents": s, "orders": c})
+                cursor += timedelta(days=1)
+            return {
+                "revenue_cents": revenue_cents,
+                "orders": orders_count,
+                "avg_order_cents": avg,
+                "by_status": by_status,
+                "top_products": top_products,
+                "series": series,
+            }
+
+        conn = get_db()
+        pending_count = int(
+            conn.execute("SELECT COUNT(*) AS c FROM orders WHERE status = 'pending'")
+            .fetchone()["c"]
+        )
+
+        current = _compute(window_start, today)
+        previous = _compute(prev_start, prev_end)
+        kpi = {
+            "revenue_cents": current["revenue_cents"],
+            "orders": current["orders"],
+            "avg_order_cents": current["avg_order_cents"],
+            "pending": pending_count,
+        }
+        kpi_prev = {
+            "revenue_cents": previous["revenue_cents"],
+            "orders": previous["orders"],
+            "avg_order_cents": previous["avg_order_cents"],
+            # pending_prev is intentionally same as pending because it is defined
+            # as "today's current pending" in the spec (not period-scoped).
+            "pending": pending_count,
+        }
+        return jsonify(
+            {
+                "period_days": days,
+                "kpi": kpi,
+                "kpi_prev": kpi_prev,
+                "series": current["series"],
+                "by_status": current["by_status"],
+                "top_products": current["top_products"],
+            }
+        )
+
+    @get("/api/activity")
+    def a_activity() -> Response:
+        _admin_only()
+        try:
+            limit = int(request.args.get("limit") or 10)
+        except (TypeError, ValueError):
+            limit = 10
+        limit = min(max(1, limit), 100)
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT e.id AS id, e.order_id AS order_id, o.id AS oid,"
+            " o.customer_name AS customer_name, o.product AS product,"
+            " e.from_status AS from_status, e.to_status AS to_status,"
+            " e.created_at AS created_at"
+            " FROM order_events e"
+            " JOIN orders o ON o.id = e.order_id"
+            " ORDER BY e.id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        out: list[dict[str, Any]] = []
+        for r in rows:
+            out.append(
+                {
+                    "id": r["id"],
+                    "order_id": r["order_id"],
+                    "order_display_id": r["oid"] + 1000,
+                    "customer_name": r["customer_name"],
+                    "product": r["product"],
+                    "from_status": r["from_status"],
+                    "to_status": r["to_status"],
+                    "created_at": r["created_at"],
+                }
+            )
+        return jsonify(out)
+
+    if app.config["DEMO_MODE"]:
+
+        @post("/api/demo/reset")
+        def a_demo_reset() -> Response:
+            _admin_only()
+            conn = get_db()
+            reset_demo_orders(conn, rng_seed=42)
+            log.info("demo data reset")
+            return jsonify({"ok": True})
+
+    # ---- Интеграция с ботом (/api/integrations/*, токен проверяет guard) ----
+
+    @app.get("/api/integrations/catalog")
+    def i_catalog() -> Response:
+        response = jsonify(active_products())
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    # ---- GET /api/integrations/events --------------------------------------
+
+    @app.get("/api/integrations/events")
+    def i_events() -> Response:
+        def _int(name: str, default: int) -> int | None:
+            raw = request.args.get(name)
+            if raw is None or raw == "":
+                return default
+            try:
+                return int(raw)
+            except ValueError:
+                return None
+
+        since_id = _int("since_id", 0)
+        limit = _int("limit", 50)
+        fields: dict[str, str] = {}
+        if since_id is None or since_id < 0:
+            fields["since_id"] = "Must be a non-negative integer"
+        if limit is None or limit < 1:
+            fields["limit"] = "Must be a positive integer"
+        if fields:
+            return _json_validation_errors(fields)
+        assert since_id is not None and limit is not None
+        limit = min(limit, 200)
+        rows = get_db().execute(
+            "SELECT e.id, e.order_id, e.to_status AS status, e.created_at"
+            " FROM order_events e JOIN orders o ON o.id = e.order_id"
+            " WHERE o.source = 'telegram' AND e.id > ?"
+            " ORDER BY e.id ASC LIMIT ?",
+            (since_id, limit),
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
+
+    # ---- PATCH /api/integrations/orders/<id>/status ------------------------
+
+    @app.patch("/api/integrations/orders/<int:order_id>/status")
+    def i_orders_status(order_id: int) -> Response:
+        data = request.get_json(silent=True)
+        raw = data.get("status") if isinstance(data, dict) else None
+        target = raw.strip() if isinstance(raw, str) else ""
+        if target not in STATUS_VALUES:
+            return _json_validation_errors({"status": "Unknown status"})
+        return _transition_order(order_id, target)
+
+    # ---- POST /api/integrations/forget -------------------------------------
+
+    @app.post("/api/integrations/forget")
+    def i_forget() -> Response:
+        data = request.get_json(silent=True)
+        uid = data.get("telegram_user_id") if isinstance(data, dict) else None
+        if not isinstance(uid, int) or isinstance(uid, bool):
+            return _json_validation_errors({"telegram_user_id": "telegram_user_id must be an integer"})
+        conn = get_db()
+        cur = conn.execute(
+            "UPDATE orders SET customer_name = 'Удалено', customer_phone = NULL,"
+            " telegram_username = NULL WHERE telegram_user_id = ?",
+            (uid,),
+        )
+        conn.commit()
+        return jsonify({"ok": True, "anonymized": cur.rowcount})
+
+    # ---- POST /api/integrations/orders -------------------------------------
+
+    @app.post("/api/integrations/orders")
+    def i_orders_create() -> Response:
+        idem_key = (request.headers.get("Idempotency-Key") or "").strip()
+        if not idem_key:
+            return _json_validation_errors({"idempotency_key": "Idempotency-Key header is required"})
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        errors: dict[str, str] = {}
+
+        customer_name = (data.get("customer_name") or "").strip()
+        if not (2 <= len(customer_name) <= 80):
+            errors["customer_name"] = "Customer name must be 2-80 characters"
+
+        customer_phone_raw = data.get("customer_phone")
+        customer_phone: str | None = customer_phone_raw.strip() if isinstance(customer_phone_raw, str) else None
+
+        telegram_user_id = data.get("telegram_user_id")
+        if telegram_user_id is None:
+            errors["telegram_user_id"] = "telegram_user_id is required"
+        elif not isinstance(telegram_user_id, int):
+            errors["telegram_user_id"] = "telegram_user_id must be an integer"
+
+        telegram_username_raw = data.get("telegram_username")
+        telegram_username: str | None = telegram_username_raw.strip() if isinstance(telegram_username_raw, str) else None
+        if telegram_username and not TG_USERNAME_RE.match(telegram_username):
+            errors["telegram_username"] = "Invalid telegram_username format"
+
+        delivery_date_raw = data.get("delivery_date")
+        delivery_date: str | None = None
+        if delivery_date_raw is not None:
+            d = _parse_iso_date(str(delivery_date_raw))
+            if d is None:
+                errors["delivery_date"] = "delivery_date must be YYYY-MM-DD"
+            else:
+                delivery_date = d.isoformat()
+
+        note_raw = data.get("note")
+        note: str | None = note_raw.strip() if isinstance(note_raw, str) else None
+        if note is not None and len(note) > 500:
+            errors["note"] = "Note must not exceed 500 characters"
+
+        items_raw = data.get("items")
+        if not isinstance(items_raw, list) or len(items_raw) == 0:
+            errors["items"] = "items must be a non-empty list"
+
+        # Catalogue lookup by product_id
+        catalogue_map: dict[int, tuple[str, int]] = {
+            p["id"]: (p["name"], p["price_cents"])
+            for p in active_products()
+        }
+
+        parsed_items: list[tuple[str, int, int]] = []  # (product, unit_price_cents, quantity)
+        if "items" not in errors and isinstance(items_raw, list):
+            for idx, item in enumerate(items_raw):
+                if not isinstance(item, dict):
+                    errors[f"items[{idx}]"] = "each item must be an object"
+                    continue
+                pid = item.get("product_id")
+                qty = item.get("quantity")
+                if not isinstance(pid, int) or pid not in catalogue_map:
+                    errors[f"items[{idx}].product_id"] = "unknown product_id"
+                    continue
+                if not isinstance(qty, int) or not (1 <= qty <= 20):
+                    errors[f"items[{idx}].quantity"] = "quantity must be 1-20"
+                    continue
+                name_p, price_p = catalogue_map[pid]
+                parsed_items.append((name_p, price_p, qty))
+
+        if errors:
+            return _json_validation_errors(errors)
+
+        # Compute total from catalogue prices
+        total_cents = sum(price * qty for _, price, qty in parsed_items)
+        if total_cents <= 0:
+            return _json_validation_errors({"items": "total amount must be greater than 0"})
+
+        # Summarised product string for legacy `product` column
+        product_summary = ", ".join(f"{name} x{qty}" for name, _, qty in parsed_items)
+        if len(product_summary) > 80:
+            product_summary = product_summary[:77] + "..."
+
+        conn = get_db()
+
+        # Idempotency: return existing order if key already seen
+        existing = conn.execute(
+            "SELECT * FROM orders WHERE idempotency_key = ?", (idem_key,)
+        ).fetchone()
+        if existing:
+            return jsonify(_order_payload(conn, existing)), 200
+
+        ts = utcnow().isoformat()
+        try:
+            cur = conn.execute(
+                "INSERT INTO orders (customer_name, customer_phone, product, amount_cents,"
+                " status, note, created_at, updated_at, source, telegram_user_id,"
+                " telegram_username, delivery_date, idempotency_key)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    customer_name, customer_phone, product_summary, total_cents,
+                    "pending", note or None, ts, ts, "telegram",
+                    telegram_user_id, telegram_username or None,
+                    delivery_date, idem_key,
+                ),
+            )
+        except Exception as exc:
+            msg = str(exc)
+            if "UNIQUE constraint" in msg and "idempotency_key" in msg:
+                # Race: re-read and return existing
+                existing = conn.execute(
+                    "SELECT * FROM orders WHERE idempotency_key = ?", (idem_key,)
+                ).fetchone()
+                if existing:
+                    return jsonify(_order_payload(conn, existing)), 200
+            raise
+
+        order_id = cur.lastrowid
+
+        for name_p, price_p, qty in parsed_items:
+            conn.execute(
+                "INSERT INTO order_items (order_id, product, unit_price_cents, quantity)"
+                " VALUES (?,?,?,?)",
+                (order_id, name_p, price_p, qty),
+            )
+
+        conn.execute(
+            "INSERT INTO order_events (order_id, from_status, to_status, created_at)"
+            " VALUES (?,?,?,?)",
+            (order_id, None, "pending", ts),
+        )
+        conn.commit()
+
+        row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        return jsonify(_order_payload(conn, row)), 201
+
+    # ---- Catch-all: 404 ----------------------------------------------------
+
+    @app.errorhandler(JsonApiError)
+    def _json_api_error(err: JsonApiError) -> Response:
+        resp = jsonify(err.body)
+        resp.status_code = err.code or 500
+        return resp
+
+    @app.errorhandler(404)
+    def _not_found(_err: Any) -> Response:
+        return _page_or_json_404()
+
+    @app.errorhandler(405)
+    def _method_not_allowed(_err: Any) -> Response:
+        return jsonify({"error": "method_not_allowed"}), 405
+
+
+# ---------------------------------------------------------------------------
+# Dev server entrypoint
+# ---------------------------------------------------------------------------
+
+
+def _ensure_instance() -> None:
+    for d in ("instance", "img"):
+        path = os.path.join(ROOT, d)
+        if not os.path.isdir(path):
+            os.makedirs(path, exist_ok=True)
+
+
+if __name__ == "__main__":
+    _ensure_instance()
+    application = create_app()
+    print(
+        " * Orders Admin Panel: http://127.0.0.1:5000\n"
+        f" * Database: {application.config['DATABASE_PATH']}"
+    )
+    if application.config["DEMO_MODE"]:
+        print(f" * Демо-режим. Логин: {application.config['ADMIN_USERNAME']} / {application.config['DEMO_PASSWORD'] or '(задан хешем)'}")
+    application.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=application.config.get("DEBUG", False),
+    )

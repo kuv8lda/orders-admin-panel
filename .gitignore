@@ -1,0 +1,27 @@
+instance/*
+!instance/.gitkeep
+__pycache__/
+*.pyc
+.env
+*.db
+.pytest_cache/
+.venv/
+venv/
+.ruff_cache/
+.coverage
+htmlcov/
+.env.*
+!.env.example
+.kiro/
+.claude/
+.playwright-mcp/
+.rtt-cache/
+*.sqlite3
+:memory:
+/reference-dribbble-table*.png
+/skills-lock.json
+/.rtt
+
+# Local development instructions
+/CLAUDE.md
+/.github/copilot-instructions.md
