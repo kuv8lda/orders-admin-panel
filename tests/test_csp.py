@@ -57,7 +57,8 @@ def test_icons_are_served_locally(app, authed):
     for path, html in _pages(app, authed).items():
         assert 'href="css/vendor/fa-icons.css"' in html, path
         assert 'href="img/favicon.svg"' in html, path
-        assert not re.search(r"https?://", html), path
+        for tag in re.findall(r"<(?:script|link|img)\b[^>]*>", html):
+            assert not re.search(r"(?:https?:)?//", tag), (path, tag)
     resp = client.get("/css/vendor/fa-icons.css")
     assert resp.status_code == 200
     css = resp.get_data(as_text=True)

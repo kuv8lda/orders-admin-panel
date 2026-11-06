@@ -74,7 +74,9 @@ def test_healthz_does_not_touch_session(client):
 
 def test_demo_mode_shows_credentials_and_seeds(client):
     page = client.get("/admin").get_data(as_text=True)
-    assert "Ltso2uJVANwzxlpwp-f6PvLB" in page
+    assert "password123" in page
+    assert "Демо-доступ" in page
+    assert page.index("</form>") < page.index("Демо-доступ")
     assert 'id="fillDemo"' in page
 
 
@@ -190,32 +192,29 @@ def test_demo_displayed_credentials_log_in():
     application = _prod_app(password=auth_mod.DEFAULT_PASSWORD, DEMO_MODE=True)
     client = application.test_client()
     page = client.get("/admin").get_data(as_text=True)
-    assert auth_mod.DEFAULT_PASSWORD in page
     assert 'id="demoUsername">admin</code>' in page
-    response = client.post("/api/login", json={
-        "username": "admin", "password": auth_mod.DEFAULT_PASSWORD,
-    })
+    assert 'id="demoPassword">password123</code>' in page
+    response = client.post("/api/login", json={"username": "admin", "password": "password123"})
     assert response.status_code == 200
-    assert client.post("/api/login", json={
-        "username": "admin", "password": "password123",
-    }).status_code == 401
 
 
 def test_demo_ignores_old_credentials():
     application = _prod_app(
-        password="password123", DEMO_MODE=True,
+        password="old-env-password", DEMO_MODE=True,
         ADMIN_PASSWORD_HASH=auth_mod.generate_password_hash("old-hash-password"),
     )
     client = application.test_client()
-    page = client.get("/admin").get_data(as_text=True)
-    assert auth_mod.DEFAULT_PASSWORD in page
-    assert "password123" not in page
     assert client.post("/api/login", json={
-        "username": "admin", "password": auth_mod.DEFAULT_PASSWORD,
-    }).status_code == 200
+        "username": "admin", "password": "old-env-password",
+    }).status_code == 401
     assert client.post("/api/login", json={
         "username": "admin", "password": "password123",
-    }).status_code == 401
+    }).status_code == 200
+
+
+def test_prod_refuses_public_demo_password():
+    with pytest.raises(RuntimeError):
+        _prod_app(password="password123")
 
 
 @pytest.mark.parametrize("demo,secure", [(True, False), (False, True)])

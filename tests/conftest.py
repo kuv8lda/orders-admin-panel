@@ -12,7 +12,7 @@ import db as db_mod
 from app import create_app
 
 
-TEST_PASSWORD = "Ltso2uJVANwzxlpwp-f6PvLB"
+TEST_PASSWORD = "password123"
 TEST_PASSWORD_HASH = werkzeug.security.generate_password_hash(TEST_PASSWORD)
 
 

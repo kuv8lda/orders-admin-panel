@@ -153,6 +153,8 @@ textarea { min-height: 90px; resize: vertical; }
 .topbar h2 { margin-right: auto; }
 .clock { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .workspace-controls { order: 10; }
+.telegram-link { position: fixed; right: 20px; bottom: 70px; z-index: 30; border-color: #17699b; background: #17699b; color: #fff; box-shadow: var(--shadow); }
+.telegram-link:hover { background: #12547c; }
 .nav-actions { display: flex; align-items: center; gap: 8px; }
 .workspace-controls #loginBtn { display: none; }
 .dash-main > section { margin-bottom: 20px; }
@@ -329,7 +331,8 @@ body.overlay-open { overflow: hidden; }
 .login-card h2 { margin-bottom: 10px; }
 .login-card .lead { font-size: 13px; line-height: 1.7; }
 .login-card .form { margin-top: 22px; }
-.demo-box { padding: 14px; margin: 20px 0; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--bg); color: var(--muted); font-size: 12px; }
+.demo-box { padding: 14px; margin: 20px 0; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--paper, var(--card)); color: var(--muted); font: 12px var(--body, inherit); }
+.demo-box h3 { margin: 0 0 8px; color: var(--text); font-size: 14px; }
 .demo-box b { color: var(--text); }
 .demo-box .btn { margin-top: 10px; }
 .to-top { position: fixed; bottom: 20px; right: 20px; z-index: 30; width: 38px; height: 38px; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); color: var(--text); opacity: 0; pointer-events: none; cursor: pointer; }

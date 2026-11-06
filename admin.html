@@ -14,15 +14,6 @@
       <h2 data-i18n="login.heading">Панель заказов</h2>
       <p class="lead" data-i18n="login.lead">Войдите, чтобы управлять заказами.</p>
 
-      {% if demo_mode and demo_password %}
-      <div class="demo-box">
-        <div><b data-i18n="login.demo_user">Логин для демо:</b> <code id="demoUsername">{{ demo_username }}</code></div>
-        <div><b data-i18n="login.demo_pass">Пароль для демо:</b> <code id="demoPassword">{{ demo_password }}</code></div>
-        <button type="button" class="btn btn-ghost" id="fillDemo">
-          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> <span data-i18n="login.fill_demo">Подставить демо-данные</span>
-        </button>
-      </div>
-      {% endif %}
 
       <div class="inline-error hidden" id="loginError" role="alert"></div>
       <div class="ratelimit-note hidden" id="rateNote" role="status"></div>
@@ -37,6 +28,17 @@
         </div>
         <button class="btn btn-primary" type="submit" data-i18n="login.submit">Войти</button>
       </form>
+
+      {% if demo_mode and demo_password %}
+      <div class="demo-box">
+        <h3 data-i18n="login.demo_heading">Демо-доступ</h3>
+        <div><b data-i18n="login.demo_user">Логин для демо:</b> <code id="demoUsername">{{ demo_username }}</code></div>
+        <div><b data-i18n="login.demo_pass">Пароль для демо:</b> <code id="demoPassword">{{ demo_password }}</code></div>
+        <button type="button" class="btn btn-ghost" id="fillDemo">
+          <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> <span data-i18n="login.fill_demo">Подставить демо-данные</span>
+        </button>
+      </div>
+      {% endif %}
     </div>
   </main>
   <script src="js/i18n.js"></script>

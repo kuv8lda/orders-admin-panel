@@ -51,6 +51,9 @@ from db import (
     utcnow,
 )
 
+from urllib.parse import urlsplit
+
+from catalog_push import CataloguePushDispatcher, enqueue_catalogue_push, versioned_catalogue
 from products import active_products
 
 from dotenv import load_dotenv
@@ -232,13 +235,27 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
         raise RuntimeError(f"PANEL_API_KEY: минимум {PANEL_API_KEY_MIN_LEN} символов.")
     app.config["PANEL_API_KEY"] = api_key or None
 
+    for name in ("BOT_CATALOG_PUSH_URL", "BOT_CATALOG_PUSH_TOKEN"):
+        if name not in app.config:
+            app.config[name] = os.environ.get(name, "").strip() or None
+        elif isinstance(app.config[name], str):
+            app.config[name] = app.config[name].strip() or None
+    push_url = app.config["BOT_CATALOG_PUSH_URL"]
+    push_token = app.config["BOT_CATALOG_PUSH_TOKEN"]
+    if bool(push_url) != bool(push_token):
+        raise RuntimeError("BOT_CATALOG_PUSH_URL и BOT_CATALOG_PUSH_TOKEN задаются вместе.")
+    if push_url:
+        parsed_push_url = urlsplit(push_url)
+        if parsed_push_url.scheme not in {"http", "https"} or not parsed_push_url.netloc:
+            raise RuntimeError("BOT_CATALOG_PUSH_URL должен быть абсолютным HTTP(S) URL.")
+
     username_env = os.environ.get("ADMIN_USERNAME") or None
     password_env = os.environ.get("ADMIN_PASSWORD") or None
     if app.config["DEMO_MODE"]:
         # Public demo credentials must not depend on old deployment secrets.
         u, h = auth_mod.get_admin_credentials(
             username_override=DEFAULT_USERNAME,
-            password_override=DEFAULT_PASSWORD,
+            password_override="password123",
         )
     else:
         if not app.config.get("ADMIN_PASSWORD_HASH"):
@@ -250,7 +267,7 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
         )
     app.config["ADMIN_USERNAME"] = u
     app.config["ADMIN_PASSWORD_HASH"] = h
-    app.config["DEMO_PASSWORD"] = DEFAULT_PASSWORD if app.config["DEMO_MODE"] else None
+    app.config["DEMO_PASSWORD"] = "password123" if app.config["DEMO_MODE"] else None
     app.secret_key = app.config["SECRET_KEY"]
 
     if app.config["TRUST_PROXY"]:
@@ -270,6 +287,20 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
     _register_routes(app)
 
     init_db(app)
+    if app.config["BOT_CATALOG_PUSH_URL"] and app.config["BOT_CATALOG_PUSH_TOKEN"]:
+        # A bot that was unavailable while the panel was down still receives
+        # an authoritative snapshot on the next panel start.
+        with app.app_context():
+            with get_db():
+                enqueue_catalogue_push(get_db())
+    dispatcher = CataloguePushDispatcher(
+        app.config["DATABASE_PATH"],
+        app.config["BOT_CATALOG_PUSH_URL"],
+        app.config["BOT_CATALOG_PUSH_TOKEN"],
+    )
+    app.extensions["catalogue_push_dispatcher"] = dispatcher
+    if not app.config.get("TESTING"):
+        dispatcher.start()
     log.info(
         "app ready: demo_mode=%s trust_proxy=%s integrations=%s",
         app.config["DEMO_MODE"],
@@ -281,7 +312,7 @@ def create_app(config: dict[str, Any] | None = None) -> Flask:
 
 def _require_real_password(password: str | None) -> None:
     """Вне демо-режима не стартуем с пустым или паролем по умолчанию."""
-    if not password or password == DEFAULT_PASSWORD:
+    if not password or password in {DEFAULT_PASSWORD, "password123"}:
         raise RuntimeError(
             "DEMO_MODE=0: задайте ADMIN_PASSWORD (не пустой и не '"
             + DEFAULT_PASSWORD
@@ -1098,6 +1129,12 @@ def _register_routes(app: Flask) -> None:
     @app.get("/api/integrations/catalog")
     def i_catalog() -> Response:
         response = jsonify(active_products())
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.get("/api/integrations/catalog-versioned")
+    def i_catalog_versioned() -> Response:
+        response = jsonify(versioned_catalogue(get_db()))
         response.headers["Cache-Control"] = "no-store"
         return response
 

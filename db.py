@@ -156,7 +156,7 @@ def close_db(_exc: BaseException | None = None) -> None:
         conn.close()
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _ORDERS_V1_COLUMNS: list[tuple[str, str]] = [
     ("source", "TEXT NOT NULL DEFAULT 'panel' CHECK (source IN ('panel','telegram'))"),
@@ -286,8 +286,29 @@ def migrate(conn: sqlite3.Connection) -> None:
         except Exception:
             conn.rollback()
             raise
-    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-    conn.commit()
+    if version < 5:
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("""CREATE TABLE IF NOT EXISTS catalog_push_revision (
+                id INTEGER PRIMARY KEY CHECK(id=1),
+                version INTEGER NOT NULL CHECK(version >= 1)
+            )""")
+            conn.execute("""CREATE TABLE IF NOT EXISTS catalog_push_outbox (
+                version INTEGER PRIMARY KEY CHECK(version >= 1),
+                catalog_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+                next_attempt_at REAL NOT NULL DEFAULT 0,
+                lease_until REAL NOT NULL DEFAULT 0
+            )""")
+            # Version 1 is the baseline catalogue for versioned GET.  Product
+            # mutations atomically enqueue revisions 2 and above.
+            conn.execute("INSERT OR IGNORE INTO catalog_push_revision(id,version) VALUES (1,1)")
+            conn.execute("PRAGMA user_version = 5")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def init_db(app: flask.Flask) -> None:

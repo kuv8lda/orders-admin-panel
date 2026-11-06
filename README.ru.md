@@ -64,16 +64,23 @@ docker compose up --build
 | `COOKIE_SECURE` | `0`: не ставить `Secure` на cookie сессии (только для `http://localhost`) | `1` |
 | `LOG_LEVEL` | Уровень логов | `INFO` |
 | `PANEL_API_KEY` | Ключ API интеграции (Bearer) | не задан |
+| `BOT_CATALOG_PUSH_URL` | Полный HTTP(S)-адрес bot endpoint, например `http://bot:8080/catalog` | не задан |
+| `BOT_CATALOG_PUSH_TOKEN` | Bearer-токен panel → bot push | не задан |
 
 `PANEL_API_KEY` включает интеграцию с Telegram-ботом (`/api/integrations/*`, заголовок `Authorization: Bearer`). Не задан: эндпоинты отвечают 404. Короче 32 символов: панель не стартует.
 
 | Метод | Путь | Описание |
 |-------|------|----------|
-| `GET` | `/api/integrations/catalog` | Каталог товаров: `id`, `name`, `price_cents` |
+| `GET` | `/api/integrations/catalog` | Каталог товаров: `id`, `name`, `price_cents` (старый bare-array контракт) |
+| `GET` | `/api/integrations/catalog-versioned` | Атомарный снимок `{ "catalog": [{"id","name","price_cents"}], "version": N }` |
 | `POST` | `/api/integrations/orders` | Создание заказа ботом (обязателен `Idempotency-Key`; цены считает панель) |
 | `PATCH` | `/api/integrations/orders/<id>/status` | Смена статуса (тело `{"status": "paid"}`; правила переходов как в панели; 404 — заказ не найден, 409 — недопустимый переход, 422 — неверный статус) |
 | `GET` | `/api/integrations/events` | События статусов заказов из Telegram (`?since_id=N&limit=50`, максимум 200; поля `id`, `order_id`, `status`, `created_at`; курсор по id события) |
 | `POST` | `/api/integrations/forget` | Анонимизация заказов пользователя Telegram (тело `{telegram_user_id}`; имя → «Удалено», телефон и username очищаются; идемпотентно, всегда 200) |
+
+`BOT_CATALOG_PUSH_URL` и `BOT_CATALOG_PUSH_TOKEN` задаются только вместе. При их наличии панель отправляет `POST` JSON `{ "catalog": [...], "version": N }` на URL с `Authorization: Bearer <BOT_CATALOG_PUSH_TOKEN>` и `Content-Type: application/json`. Версии начинаются с 1 и монотонно возрастают. Каталог и версия одного push, как и ответ `GET /api/integrations/catalog-versioned`, читаются из одного SQLite-снимка. Бот должен атомарно применить только строго новую версию, игнорируя равные и меньшие, и вернуть любой 2xx.
+
+Снимки хранятся в SQLite outbox до успешного ответа, доставляются строго по порядку версий и повторяются с экспоненциальной задержкой до 5 минут. При запуске настроенной панели добавляется актуальный снимок: бот, недоступный во время остановки панели, получает каталог без нового изменения товара.
 
 ## Статусы заказов
 

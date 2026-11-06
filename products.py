@@ -1,12 +1,26 @@
 """Session-protected assortment management; integration reads share the same catalogue."""
 import sqlite3
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
+from catalog_push import enqueue_catalogue_push
 from db import get_db, utcnow
 
 bp = Blueprint("products", __name__)
 MAX_PRICE_CENTS = 1_000_000_000
+
+
+def _notify_catalogue_dispatcher():
+    dispatcher = current_app.extensions.get("catalogue_push_dispatcher")
+    if dispatcher is not None:
+        dispatcher.notify()
+
+
+def _catalogue_push_enabled() -> bool:
+    return bool(
+        current_app.config.get("BOT_CATALOG_PUSH_URL")
+        and current_app.config.get("BOT_CATALOG_PUSH_TOKEN")
+    )
 
 
 def active_products():
@@ -38,13 +52,18 @@ def create_product():
     if not _valid(body, creating=True):
         return jsonify(error="validation_failed"), 422
     conn = get_db()
+    push_enabled = _catalogue_push_enabled()
     try:
         with conn:
             cur = conn.execute(
                 "INSERT INTO my_products(name,price_cents,is_active,updated_at) VALUES (?,?,?,?)",
                 (body["name"].strip(), body["price_cents"], body.get("is_active", True), utcnow().isoformat()),
             )
-        return jsonify(dict(conn.execute("SELECT * FROM my_products WHERE id=?", (cur.lastrowid,)).fetchone())), 201
+            enqueue_catalogue_push(conn, queue=push_enabled)
+        product = dict(conn.execute("SELECT * FROM my_products WHERE id=?", (cur.lastrowid,)).fetchone())
+        if push_enabled:
+            _notify_catalogue_dispatcher()
+        return jsonify(product), 201
     except sqlite3.IntegrityError:
         return jsonify(error="validation_failed"), 422
 
@@ -55,6 +74,7 @@ def update_product(product_id):
     if not _valid(body):
         return jsonify(error="validation_failed"), 422
     conn = get_db()
+    push_enabled = _catalogue_push_enabled()
     try:
         conn.execute("BEGIN IMMEDIATE")
         old = conn.execute("SELECT * FROM my_products WHERE id=?", (product_id,)).fetchone()
@@ -65,15 +85,21 @@ def update_product(product_id):
         price = body.get("price_cents", old["price_cents"])
         active = body.get("is_active", old["is_active"])
         now = utcnow().isoformat()
+        changed = (name, price, active) != (old["name"], old["price_cents"], old["is_active"])
         if price != old["price_cents"]:
             conn.execute(
                 "INSERT INTO my_price_history(product_id,old_price_cents,new_price_cents,created_at) VALUES (?,?,?,?)",
                 (product_id, old["price_cents"], price, now),
             )
-        conn.execute("UPDATE my_products SET name=?,price_cents=?,is_active=?,updated_at=? WHERE id=?",
-                     (name, price, active, now, product_id))
+        if changed:
+            conn.execute("UPDATE my_products SET name=?,price_cents=?,is_active=?,updated_at=? WHERE id=?",
+                         (name, price, active, now, product_id))
+            enqueue_catalogue_push(conn, queue=push_enabled)
         conn.commit()
-        return jsonify(dict(conn.execute("SELECT * FROM my_products WHERE id=?", (product_id,)).fetchone()))
+        product = dict(conn.execute("SELECT * FROM my_products WHERE id=?", (product_id,)).fetchone())
+        if changed and push_enabled:
+            _notify_catalogue_dispatcher()
+        return jsonify(product)
     except sqlite3.IntegrityError:
         conn.rollback()
         return jsonify(error="validation_failed"), 422

@@ -30,7 +30,7 @@ docker compose up --build                   # http://localhost:5000
 
 ## Configuration
 
-See [`.env.example`](.env.example): `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `DEMO_MODE`, `FLASK_DEBUG`, `DATABASE_PATH`, `TRUST_PROXY`, `COOKIE_SECURE`, `LOG_LEVEL`, `PANEL_API_KEY` (Telegram bot integration under `/api/integrations/*`; disabled with 404 when unset, min 32 chars). The app does not read `.env` itself; export the variables or pass the file to Docker.
+See [`.env.example`](.env.example): `SECRET_KEY`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `DEMO_MODE`, `FLASK_DEBUG`, `DATABASE_PATH`, `TRUST_PROXY`, `COOKIE_SECURE`, `LOG_LEVEL`, `PANEL_API_KEY` (Telegram bot integration under `/api/integrations/*`; disabled with 404 when unset, min 32 chars), `BOT_CATALOG_PUSH_URL`, and `BOT_CATALOG_PUSH_TOKEN`. The app does not read `.env` itself; export the variables or pass the file to Docker.
 
 ## Order statuses
 
@@ -46,7 +46,8 @@ Requires `PANEL_API_KEY` (≥ 32 chars) and `Authorization: Bearer <key>` header
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/integrations/catalog` | Active own products with `id`, `name`, `price_cents` (bare array) |
+| `GET` | `/api/integrations/catalog` | Active own products with `id`, `name`, `price_cents` (bare array; legacy contract) |
+| `GET` | `/api/integrations/catalog-versioned` | Atomic versioned catalogue: `{"catalog":[{"id","name","price_cents"}],"version":N}` |
 | `GET` | `/api/integrations/competitor-prices` | Competitor snapshot for the bot's price monitor (bare array; stable `competitor_id`/`product_id`, `competitor_name`, `product_name`, `price_cents`, nullable `own_price_cents`) |
 | `POST` | `/api/integrations/orders` | Create order from Telegram bot |
 | `PATCH` | `/api/integrations/orders/<id>/status` | Change order status (body `{"status": "paid"}`; 404 unknown order, 409 invalid transition, 422 invalid status) |
@@ -69,11 +70,20 @@ Requires `Idempotency-Key` header (UUID). Prices are computed from the catalogue
 
 ## Own assortment and bot prices
 
-The panel manages the bot's prices. Changes synchronize through
-`GET /api/integrations/catalog` at bot startup. Restart the bot after changing
-prices or assortment. With integration enabled, an unavailable panel prevents startup
-to avoid ordering with stale IDs. The offline menu contains the same 20 demo products.
-Price changes are stored in `my_price_history` for auditing.
+The panel manages the bot's prices. The bot can bootstrap with the versioned
+`GET /api/integrations/catalog-versioned` response; the old `GET /api/integrations/catalog` bare-array contract remains available. Set both `BOT_CATALOG_PUSH_URL` (for example
+`http://bot:8080/catalog`) and `BOT_CATALOG_PUSH_TOKEN` to enable panel-to-bot delivery.
+Every actual product create, rename, price, or visibility change atomically stores an
+immutable snapshot in SQLite and POSTs it to that URL as
+`{"catalog":[{"id":1,"name":"...","price_cents":240000}],"version":N}` with
+`Authorization: Bearer <BOT_CATALOG_PUSH_TOKEN>` and `Content-Type: application/json`.
+Versions are globally monotonic and start at 1. The receiver must atomically apply a
+strictly newer version and return any 2xx response; equal/older versions must be
+idempotently ignored. Delivery is FIFO, uses exponential retry (up to five minutes),
+and survives panel restarts. A configured panel also queues a fresh snapshot at startup,
+so a bot that was unavailable while the panel was down catches up without an edit.
+The offline menu contains the same 20 demo products. Price changes are stored in
+`my_price_history` for auditing.
 
 “My products” lets an administrator add products, edit names/prices, hide and
 reactivate products. “Change” in the competitor comparison edits the mapped
