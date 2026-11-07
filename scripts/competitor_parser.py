@@ -102,7 +102,7 @@ def sync_once(source, panel, token):
 def main():
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", default=os.getenv("COMPETITOR_SOURCE_URL", "http://127.0.0.1:5001"))
+    parser.add_argument("--source", default=os.getenv("SOURCE_URL", "http://127.0.0.1:5001"))
     parser.add_argument("--panel", default=os.getenv("PANEL_URL", "http://127.0.0.1:5000"))
     parser.add_argument("--interval", type=float, default=15)
     parser.add_argument("--once", action="store_true")

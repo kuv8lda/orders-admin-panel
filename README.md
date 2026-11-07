@@ -2,7 +2,17 @@
 
 [Русская версия (основная)](README.ru.md)
 
-An admin panel for a small business that takes orders in messengers: one table with statuses, search and filters, CSV export and sales stats. Flask 3, SQLite, vanilla JS, no build step. Demo data is a made-up bakery ("Хлебный день"), amounts in rubles.
+Order administration panel and backend for a Telegram bot. The stack uses Flask, SQLite, Gunicorn and vanilla JavaScript. Demo orders use a fictional bakery, «Хлебный день»; amounts are stored in kopecks.
+
+## Features
+
+- Manage orders, filter and search the table, export CSV and view sales statistics.
+- Connect a Telegram bot through `/api/integrations/*` with a Bearer token.
+- Use `DEMO_MODE` for public demo credentials and seeded orders. Set `DEMO_MODE=0` and an administrator password for production.
+- Configure the session cookie with `COOKIE_SECURE` and trusted reverse proxy handling with `TRUST_PROXY`.
+- Check `GET /healthz` without authentication or a database query.
+- Enforce order status transitions with a finite-state machine and record changes in `order_events`.
+- Manage products and prices, synchronize the bot catalogue and compare competitor prices.
 
 ![Orders panel, light theme](img/dashboard-light.png)
 
@@ -12,12 +22,32 @@ An admin panel for a small business that takes orders in messengers: one table w
 
 ```bash
 pip install -r requirements.txt
-python app.py                            # http://127.0.0.1:5000, admin / Ltso2uJVANwzxlpwp-f6PvLB
-# or
-docker compose up --build                   # http://localhost:5000
+DEMO_MODE=1 python app.py  # http://127.0.0.1:5000, admin / password123
 ```
 
-`FLASK_DEBUG=1` only turns off the `Secure` cookie flag for plain `http://` on your machine.
+`FLASK_DEBUG=1` enables Flask debug mode and disables the `Secure` cookie flag.
+
+## Production
+
+Install the dependencies, export the settings and start Gunicorn behind an HTTPS Nginx reverse proxy:
+
+```bash
+pip install -r requirements.txt
+export DEMO_MODE=0 ADMIN_USERNAME=admin
+export ADMIN_PASSWORD='<strong-password>' SECRET_KEY='<random-secret>'
+export COOKIE_SECURE=1 TRUST_PROXY=1
+# Set PANEL_API_KEY to a secret of at least 32 characters to enable bot integration.
+export PANEL_API_KEY='<integration-token>'
+gunicorn --workers 1 --threads 4 --bind 127.0.0.1:8000 'app:create_app()'
+```
+
+Configure Nginx to proxy requests to `127.0.0.1:8000`, terminate TLS and send `X-Forwarded-For`. Then check and reload its configuration:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Use one Gunicorn worker because login rate limits are stored in process memory. Enable `TRUST_PROXY=1` only behind a trusted proxy. The app does not load `.env` itself.
 
 ## Modes
 
@@ -26,7 +56,7 @@ docker compose up --build                   # http://localhost:5000
 | Credentials shown on the login page | yes | no |
 | Demo orders seeded on first start | yes | no |
 | `POST /api/demo/reset` | yes | 404 |
-| Default password `Ltso2uJVANwzxlpwp-f6PvLB` | allowed | app refuses to start |
+| Demo password `password123` | used | app refuses to start |
 
 ## Configuration
 
