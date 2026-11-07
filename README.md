@@ -1,8 +1,11 @@
 # Orders Admin Panel
 
-[Русская версия (основная)](README.ru.md)
+[Russian version](README.ru.md)
 
 Order administration panel and backend for a Telegram bot. The stack uses Flask, SQLite, Gunicorn and vanilla JavaScript. Demo orders use a fictional bakery, «Хлебный день»; amounts are stored in kopecks.
+
+# Bot + panel demonstration
+https://github.com/user-attachments/assets/37505b09-64de-4109-abb0-cb2a4fc5f432
 
 ## Features
 
